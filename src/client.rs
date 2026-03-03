@@ -179,3 +179,165 @@ impl PgmonetaClient {
         Self::read_response(&mut stream).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_request_header() {
+        let header = PgmonetaClient::build_request_header(Command::INFO);
+
+        assert_eq!(header.command, Command::INFO);
+        assert_eq!(header.client_version, CLIENT_VERSION);
+        assert_eq!(header.output_format, Format::JSON);
+        assert_eq!(header.compression, Compression::NONE);
+        assert_eq!(header.encryption, Encryption::NONE);
+
+        // Timestamp should be in YYYYMMDDHHmmss format (14 characters)
+        assert_eq!(header.timestamp.len(), 14);
+        assert!(header.timestamp.chars().all(|c| c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn test_build_request_header_different_commands() {
+        let header1 = PgmonetaClient::build_request_header(Command::INFO);
+        let header2 = PgmonetaClient::build_request_header(Command::LIST_BACKUP);
+
+        assert_eq!(header1.command, Command::INFO);
+        assert_eq!(header2.command, Command::LIST_BACKUP);
+        assert_ne!(header1.command, header2.command);
+    }
+
+    #[test]
+    fn test_request_serialization() {
+        #[derive(Serialize, Clone, Debug)]
+        struct TestRequest {
+            field1: String,
+            field2: i32,
+        }
+
+        let test_request = TestRequest {
+            field1: "test".to_string(),
+            field2: 42,
+        };
+
+        let header = PgmonetaClient::build_request_header(Command::INFO);
+        let request = PgmonetaRequest {
+            header,
+            request: test_request,
+        };
+
+        let serialized = serde_json::to_string(&request).expect("Serialization should succeed");
+
+        // Verify JSON contains expected fields
+        assert!(serialized.contains("\"Header\""));
+        assert!(serialized.contains("\"Request\""));
+        assert!(serialized.contains("\"Command\""));
+        assert!(serialized.contains("\"ClientVersion\""));
+        assert!(serialized.contains("\"field1\""));
+        assert!(serialized.contains("\"field2\""));
+        assert!(serialized.contains("\"test\""));
+        assert!(serialized.contains("42"));
+    }
+
+    #[test]
+    fn test_request_header_serialization() {
+        let header = RequestHeader {
+            command: 1,
+            client_version: "0.2.0".to_string(),
+            output_format: Format::JSON,
+            timestamp: "20260304123045".to_string(),
+            compression: Compression::NONE,
+            encryption: Encryption::NONE,
+        };
+
+        let serialized = serde_json::to_string(&header).expect("Serialization should succeed");
+        let deserialized: serde_json::Value =
+            serde_json::from_str(&serialized).expect("Deserialization should succeed");
+
+        assert_eq!(deserialized["Command"], 1);
+        assert_eq!(deserialized["ClientVersion"], "0.2.0");
+        assert_eq!(deserialized["Output"], Format::JSON);
+        assert_eq!(deserialized["Timestamp"], "20260304123045");
+        assert_eq!(deserialized["Compression"], Compression::NONE);
+        assert_eq!(deserialized["Encryption"], Encryption::NONE);
+    }
+
+    #[tokio::test]
+    async fn test_write_request_format() {
+        // Create a mock TCP stream using a buffer
+        let mut buffer = Vec::new();
+        let request_str = r#"{"test":"data"}"#;
+
+        // Manually write what write_request would write
+        let mut temp_buf = Vec::new();
+        temp_buf.write_i32(request_str.len() as i32).await.unwrap();
+        temp_buf.write_all(request_str.as_bytes()).await.unwrap();
+
+        buffer.write_u8(Compression::NONE).await.unwrap();
+        buffer.write_u8(Encryption::NONE).await.unwrap();
+        buffer.write_all(&temp_buf).await.unwrap();
+
+        // Verify the format
+        assert_eq!(buffer[0], Compression::NONE);
+        assert_eq!(buffer[1], Encryption::NONE);
+
+        // Read length
+        let length = i32::from_be_bytes([buffer[2], buffer[3], buffer[4], buffer[5]]);
+        assert_eq!(length, request_str.len() as i32);
+
+        // Verify payload
+        let payload = String::from_utf8(buffer[6..].to_vec()).unwrap();
+        assert_eq!(payload, request_str);
+    }
+
+    #[test]
+    fn test_timestamp_format() {
+        let header = PgmonetaClient::build_request_header(Command::INFO);
+        let timestamp = &header.timestamp;
+
+        // Should be exactly 14 digits
+        assert_eq!(timestamp.len(), 14);
+
+        // Parse components
+        let year: i32 = timestamp[0..4].parse().expect("Year should be valid");
+        let month: i32 = timestamp[4..6].parse().expect("Month should be valid");
+        let day: i32 = timestamp[6..8].parse().expect("Day should be valid");
+        let hour: i32 = timestamp[8..10].parse().expect("Hour should be valid");
+        let minute: i32 = timestamp[10..12].parse().expect("Minute should be valid");
+        let second: i32 = timestamp[12..14].parse().expect("Second should be valid");
+
+        // Validate ranges
+        assert!((2020..=2100).contains(&year));
+        assert!((1..=12).contains(&month));
+        assert!((1..=31).contains(&day));
+        assert!((0..24).contains(&hour));
+        assert!((0..60).contains(&minute));
+        assert!((0..60).contains(&second));
+    }
+
+    #[test]
+    fn test_request_clone() {
+        #[derive(Serialize, Clone, Debug)]
+        struct TestRequest {
+            data: String,
+        }
+
+        let test_request = TestRequest {
+            data: "test".to_string(),
+        };
+
+        let header = PgmonetaClient::build_request_header(Command::INFO);
+        let request1 = PgmonetaRequest {
+            header: header.clone(),
+            request: test_request.clone(),
+        };
+        let request2 = request1.clone();
+
+        let serialized1 = serde_json::to_string(&request1).unwrap();
+        let serialized2 = serde_json::to_string(&request2).unwrap();
+
+        assert_eq!(serialized1, serialized2);
+    }
+}

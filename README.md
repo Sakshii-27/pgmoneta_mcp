@@ -10,7 +10,7 @@ For now, this server allows you to query the backup info using natural language 
 
 ## Overview
 
-**pgmoneta MCP** is built upon [rmcp](https://docs.rs/rmcp/latest/rmcp/). It uses [SCRAM-SHA-256](https://datatracker.ietf.org/doc/html/rfc7677) to authenticate with pgmoneta server. We also provide an admin tool `pgmoneta-mcp-amdin` to help you manage users.
+**pgmoneta MCP** is built upon [rmcp](https://docs.rs/rmcp/latest/rmcp/). It uses [SCRAM-SHA-256](https://datatracker.ietf.org/doc/html/rfc7677) to authenticate with pgmoneta server. We also provide an admin tool `pgmoneta-mcp-admin` to help you manage users. For administration commands, see [ADMIN.md](doc/ADMIN.md).
 
 ## Build the project
 

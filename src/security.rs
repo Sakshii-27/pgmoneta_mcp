@@ -157,6 +157,30 @@ impl SecurityUtil {
             salt,
         )
     }
+
+    /// Generate a random password of the specified length.
+    /// Uses alphanumeric characters and common special characters.
+    pub fn generate_password(&self, length: usize) -> anyhow::Result<String> {
+        const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                              abcdefghijklmnopqrstuvwxyz\
+                              0123456789\
+                              !@$%^&*()-_=+[{]}\\|:'\",<.>/?";
+
+        let mut password = vec![0u8; length];
+        let mut random_bytes = vec![0u8; length];
+
+        rand::rngs::OsRng.try_fill_bytes(&mut random_bytes)?;
+
+        for (i, byte) in random_bytes.iter().enumerate() {
+            password[i] = CHARS[*byte as usize % CHARS.len()];
+        }
+
+        // Zero out random bytes for security
+        random_bytes.zeroize();
+
+        String::from_utf8(password)
+            .map_err(|e| anyhow!("Generated password contains invalid UTF-8: {:?}", e))
+    }
 }
 
 impl SecurityUtil {
@@ -449,5 +473,225 @@ mod tests {
             .decrypt_from_base64_string(&res, master_key)
             .expect("Decryption should succeed");
         assert_eq!(decrypted_text, text.as_bytes())
+    }
+
+    #[test]
+    fn test_generate_password_default_length() {
+        let sutil = SecurityUtil::new();
+        let password = sutil
+            .generate_password(64)
+            .expect("Password generation should succeed");
+        assert_eq!(password.len(), 64);
+    }
+
+    #[test]
+    fn test_generate_password_custom_length() {
+        let sutil = SecurityUtil::new();
+        let password = sutil
+            .generate_password(32)
+            .expect("Password generation should succeed");
+        assert_eq!(password.len(), 32);
+    }
+
+    #[test]
+    fn test_generate_password_contains_valid_chars() {
+        let sutil = SecurityUtil::new();
+        let password = sutil
+            .generate_password(100)
+            .expect("Password generation should succeed");
+        // Should only contain alphanumeric and special chars from the defined set.
+        let valid_chars: std::collections::HashSet<char> =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$%^&*()-_=+[{]}\\|:'\",<.>/?"
+                .chars()
+                .collect();
+        assert!(password.chars().all(|c| valid_chars.contains(&c)));
+    }
+
+    #[test]
+    fn test_encrypt_decrypt_empty_string() {
+        let sutil = SecurityUtil::new();
+        let master_key = "test_master_key".as_bytes();
+        let text = "";
+        let res = sutil
+            .encrypt_to_base64_string(text.as_bytes(), master_key)
+            .expect("Encryption should succeed");
+        let decrypted_text = sutil
+            .decrypt_from_base64_string(&res, master_key)
+            .expect("Decryption should succeed");
+        assert_eq!(decrypted_text, text.as_bytes());
+    }
+
+    #[test]
+    fn test_encrypt_decrypt_large_text() {
+        let sutil = SecurityUtil::new();
+        let master_key = "test_master_key".as_bytes();
+        let text = "a".repeat(10000);
+        let res = sutil
+            .encrypt_to_base64_string(text.as_bytes(), master_key)
+            .expect("Encryption should succeed");
+        let decrypted_text = sutil
+            .decrypt_from_base64_string(&res, master_key)
+            .expect("Decryption should succeed");
+        assert_eq!(decrypted_text, text.as_bytes());
+    }
+
+    #[test]
+    fn test_encrypt_decrypt_unicode() {
+        let sutil = SecurityUtil::new();
+        let master_key = "test_master_key".as_bytes();
+        let text = "Hello 世界 🌍 Привет";
+        let res = sutil
+            .encrypt_to_base64_string(text.as_bytes(), master_key)
+            .expect("Encryption should succeed");
+        let decrypted_text = sutil
+            .decrypt_from_base64_string(&res, master_key)
+            .expect("Decryption should succeed");
+        assert_eq!(decrypted_text, text.as_bytes());
+    }
+
+    #[test]
+    fn test_decrypt_with_wrong_key() {
+        let sutil = SecurityUtil::new();
+        let master_key1 = "correct_key".as_bytes();
+        let master_key2 = "wrong_key".as_bytes();
+        let text = "secret_data";
+        let encrypted = sutil
+            .encrypt_to_base64_string(text.as_bytes(), master_key1)
+            .expect("Encryption should succeed");
+
+        // Decryption with wrong key should fail
+        let result = sutil.decrypt_from_base64_string(&encrypted, master_key2);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decrypt_invalid_base64() {
+        let sutil = SecurityUtil::new();
+        let master_key = "test_key".as_bytes();
+        let invalid_base64 = "not-valid-base64!!!";
+
+        let result = sutil.decrypt_from_base64_string(invalid_base64, master_key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_decrypt_truncated_ciphertext() {
+        let sutil = SecurityUtil::new();
+        let master_key = "test_key".as_bytes();
+
+        // Create valid base64 but with insufficient bytes (less than nonce + salt)
+        let short_bytes = vec![0u8; 10];
+        let short_base64 = sutil.base64_encode(&short_bytes).unwrap();
+
+        let result = sutil.decrypt_from_base64_string(&short_base64, master_key);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_base64_encode_empty() {
+        let sutil = SecurityUtil::new();
+        let empty: &[u8] = &[];
+        let encoded = sutil.base64_encode(empty).expect("Encode should succeed");
+        assert_eq!(encoded, "");
+    }
+
+    #[test]
+    fn test_base64_decode_empty() {
+        let sutil = SecurityUtil::new();
+        let decoded = sutil.base64_decode("").expect("Decode should succeed");
+        let expected: Vec<u8> = vec![];
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn test_generate_password_min_length() {
+        let sutil = SecurityUtil::new();
+        let password = sutil
+            .generate_password(1)
+            .expect("Password generation should succeed");
+        assert_eq!(password.len(), 1);
+    }
+
+    #[test]
+    fn test_generate_password_uniqueness() {
+        let sutil = SecurityUtil::new();
+        let password1 = sutil
+            .generate_password(64)
+            .expect("Password generation should succeed");
+        let password2 = sutil
+            .generate_password(64)
+            .expect("Password generation should succeed");
+
+        // Two randomly generated passwords should be different
+        assert_ne!(password1, password2);
+    }
+
+    #[test]
+    fn test_encrypt_different_nonces() {
+        let sutil = SecurityUtil::new();
+        let master_key = "test_key".as_bytes();
+        let text = "same text";
+
+        // Encrypt the same text twice
+        let encrypted1 = sutil
+            .encrypt_to_base64_string(text.as_bytes(), master_key)
+            .expect("Encryption should succeed");
+        let encrypted2 = sutil
+            .encrypt_to_base64_string(text.as_bytes(), master_key)
+            .expect("Encryption should succeed");
+
+        // Encrypted results should be different due to random nonce
+        assert_ne!(encrypted1, encrypted2);
+
+        // But both should decrypt to the same plaintext
+        let decrypted1 = sutil
+            .decrypt_from_base64_string(&encrypted1, master_key)
+            .expect("Decryption should succeed");
+        let decrypted2 = sutil
+            .decrypt_from_base64_string(&encrypted2, master_key)
+            .expect("Decryption should succeed");
+
+        assert_eq!(decrypted1, text.as_bytes());
+        assert_eq!(decrypted2, text.as_bytes());
+    }
+
+    #[test]
+    fn test_base64_roundtrip_various_inputs() {
+        let sutil = SecurityUtil::new();
+
+        let all_bytes: Vec<u8> = (0..=255).collect();
+        let zero_bytes = [0u8; 100];
+
+        let test_cases: Vec<&[u8]> = vec![
+            b"",
+            b"a",
+            b"hello world",
+            b"special chars: !@#$%^&*()",
+            &zero_bytes,
+            &all_bytes,
+        ];
+
+        for test_data in test_cases {
+            let encoded = sutil
+                .base64_encode(test_data)
+                .expect("Encoding should succeed");
+            let decoded = sutil
+                .base64_decode(&encoded)
+                .expect("Decoding should succeed");
+            assert_eq!(decoded, test_data);
+        }
+    }
+
+    #[test]
+    fn test_security_util_default_trait() {
+        let util1 = SecurityUtil::new();
+        let util2 = SecurityUtil::default();
+
+        // Both should work identically
+        let test_data = b"test";
+        let encoded1 = util1.base64_encode(test_data).unwrap();
+        let encoded2 = util2.base64_encode(test_data).unwrap();
+
+        assert_eq!(encoded1, encoded2);
     }
 }

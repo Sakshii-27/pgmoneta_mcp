@@ -119,9 +119,12 @@ cargo run --bin pgmoneta-mcp-server -- -c pgmoneta-mcp.conf -u pgmoneta-mcp-user
 ### Run built binaries directly
 
 ```bash
-./target/debug/pgmoneta-mcp-server -c <config> -u <users>
-./target/debug/pgmoneta-mcp-admin --help
+./target/debug/pgmoneta-mcp-server -c pgmoneta-mcp.conf -u pgmoneta-mcp-users.conf
+./target/debug/pgmoneta-mcp-admin -f pgmoneta-mcp-users.conf user ls
+./target/debug/pgmoneta-mcp-admin -f pgmoneta-mcp-users.conf -U admin user add
 ```
+
+For a full list of admin commands, see [ADMIN.md](ADMIN.md).
 
 ### Debugging
 

@@ -1,6 +1,9 @@
 [pgmoneta]: https://pgmoneta.github.io/
 [postgresql]: https://www.postgresql.org
 
+[git_squash]: https://www.git-tower.com/learn/git/faq/git-squash
+[progit]: https://github.com/progit/progit2/releases
+
 [ask]: https://github.com/pgmoneta/pgmoneta_mcp/discussions
 [issue]: https://github.com/pgmoneta/pgmoneta_mcp/issues
 [request]: https://github.com/pgmoneta/pgmoneta_mcp/issues

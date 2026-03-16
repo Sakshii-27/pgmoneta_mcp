@@ -20,6 +20,7 @@ mod info;
 mod mode;
 mod retention;
 mod shutdown;
+mod verify;
 
 use super::compression::CompressionUtil;
 use super::configuration::CONFIG;

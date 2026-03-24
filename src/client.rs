@@ -15,6 +15,7 @@
 
 mod compression;
 mod conf;
+mod encryption;
 mod info;
 mod mode;
 mod retention;

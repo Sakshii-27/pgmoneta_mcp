@@ -15,6 +15,7 @@
 
 pub mod compression;
 pub mod conf;
+pub mod encryption;
 pub mod hello;
 pub mod info;
 pub mod mode;
@@ -64,6 +65,8 @@ impl PgmonetaHandler {
             .with_async_tool::<mode::SetModeTool>()
             .with_async_tool::<compression::CompressFileTool>()
             .with_async_tool::<compression::DecompressFileTool>()
+            .with_async_tool::<encryption::EncryptFileTool>()
+            .with_async_tool::<encryption::DecryptFileTool>()
     }
 }
 

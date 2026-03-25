@@ -17,23 +17,23 @@ The client module is defined and implemented in `src/client.rs` and `src/handler
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────┐
-│         PgmonetaClient                  │
-├─────────────────────────────────────────┤
-│  Connection Management                  │
-│  - connect_to_server()                  │
-│  - Uses SecurityUtil for auth           │
-│                                         │
-│  Request Building                       │
-│  - build_request_header()               │
-│  - PgmonetaRequest<R> wrapper           │
-│                                         │
-│  Communication                          │
-│  - write_request()                      │
-│  - read_response()                      │
-│  - forward_request()                    │
-└─────────────────────────────────────────┘
+``` text
++-----------------------------------------+
+|         PgmonetaClient                  |
++-----------------------------------------+
+|  Connection Management                  |
+|  - connect_to_server()                  |
+|  - Uses SecurityUtil for auth           |
+|                                         |
+|  Request Building                       |
+|  - build_request_header()               |
+|  - PgmonetaRequest<R> wrapper           |
+|                                         |
+|  Communication                          |
+|  - write_request()                      |
+|  - read_response()                      |
+|  - forward_request()                    |
++-----------------------------------------+
 ```
 
 ### PgmonetaClient Structure

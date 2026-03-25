@@ -1,14 +1,13 @@
-\newpage
 
-# Ollama
+## Ollama
 
 [Ollama](https://ollama.com) is the recommended way to get started with local LLM
 support in **pgmoneta_mcp**. It provides a straightforward CLI, a local HTTP API,
 and a simple model management workflow.
 
-This chapter shows how to install Ollama, prepare a tool-capable model, and configure **pgmoneta_mcp** to use it.
+This section shows how to install Ollama, prepare a tool-capable model, and configure **pgmoneta_mcp** to use it.
 
-## Install Ollama
+### Install Ollama
 
 Follow the installation instructions for your platform at
 [ollama.com/download](https://ollama.com/download).
@@ -19,7 +18,7 @@ After installation, verify that the CLI is available:
 ollama --version
 ```
 
-## Start the Ollama service
+### Start the Ollama service
 
 Ollama serves models over HTTP. Start it with:
 
@@ -41,27 +40,41 @@ curl http://localhost:11434/
 
 If the service is up, the response should confirm that Ollama is running.
 
-## Pull a model
+### Pull a model
 
-Before using a model, download it locally. For example:
+Before using a model, download it locally. The model name here must match exactly what you configure in `pgmoneta-mcp.conf`. For example:
 
 ``` sh
 ollama pull llama3.1
 ```
 
-or:
-
 ``` sh
 ollama pull qwen2.5:3b
 ```
 
-You can inspect the locally available models with:
+#### Verify downloaded models
+
+Use `ollama list` to see all models installed on your system:
 
 ``` sh
 ollama list
 ```
 
-## Check tool support
+This will show the model name, ID, size on disk, and when it was downloaded or last updated:
+
+``` text
+NAME               ID              SIZE    MODIFIED
+qwen2.5:3b         cb8f3e4a7b82    1.9 GB  2 hours ago
+llama3.1:latest    42182419e950    4.7 GB  3 days ago
+```
+
+The value in the `NAME` column is the model identifier you must set in your config. For example, if you see `qwen2.5:3b` in the list, your config should be:
+
+``` ini
+model = qwen2.5:3b
+```
+
+### Check tool support
 
 For **pgmoneta_mcp**, the model must support tool calling.
 
@@ -80,7 +93,7 @@ curl -s http://localhost:11434/api/show \
 
 Look for `tools` in the reported capabilities.
 
-## Configure pgmoneta_mcp
+### Configure pgmoneta_mcp
 
 Add or update the `[llm]` section in `pgmoneta-mcp.conf`:
 
@@ -91,14 +104,3 @@ endpoint = http://localhost:11434
 model = qwen2.5:3b
 max_tool_rounds = 10
 ```
-
-Property summary:
-
-| Property | Description |
-| :------- | :---------- |
-| `provider` | Required. Must be `ollama` |
-| `endpoint` | Required. Base URL of the Ollama server |
-| `model` | Optional. Defaults to `llama3.1` for Ollama |
-| `max_tool_rounds` | Safety limit for repeated tool-calling rounds |
-
-If `model` is omitted, **pgmoneta_mcp** uses `llama3.1` as the default model name for Ollama.

@@ -6,18 +6,18 @@ The pgmoneta MCP server is designed as a secure bridge between MCP clients and t
 
 ### Overview
 
-```
-┌──────────────┐          ┌──────────────┐          ┌──────────────┐
-│ MCP Client   │ ──────── │ MCP Server   │ ──────── │ pgmoneta     │
-│ (AI Tools)   │   MCP    │ (pgmoneta-   │   TCP    │ Server       │
-│              │  Protocol│  mcp-server) │   Socket │              │
-└──────────────┘          └──────────────┘          └──────────────┘
-                                 │
-                                 ▼
-                          ┌──────────────┐
-                          │ Configuration│
-                          │ Files        │
-                          └──────────────┘
+```text
++--------------+          +--------------+          +--------------+
+| MCP Client   | -------- | MCP Server   | -------- | pgmoneta     |
+| (AI Tools)   |   MCP    | (pgmoneta-   |   TCP    | Server       |
+|              |  Protocol|  mcp-server) |   Socket |              |
++--------------+          +--------------+          +--------------+
+                                 |
+                                 V
+                          +--------------+
+                          | Configuration|
+                          | Files        |
+                          +--------------+
 ```
 
 ### Communication Flow

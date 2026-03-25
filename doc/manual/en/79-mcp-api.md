@@ -17,30 +17,30 @@ The MCP implementation is built on top of the [rmcp](https://docs.rs/rmcp/latest
 
 The MCP server architecture consists of several key components:
 
-```
-┌─────────────────┐
-│   MCP Client    │ (Claude, ChatGPT, etc.)
-│  (AI Assistant) │
-└────────┬────────┘
-         │ MCP Protocol
-         │ (JSON-RPC)
-         ▼
-┌─────────────────┐
-│ PgmonetaHandler │ ◄─── Handles MCP requests
-│   (handler.rs)  │      Routes to appropriate tools
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ PgmonetaClient  │ ◄─── Manages communication
-│   (client.rs)   │      with pgmoneta server
-└────────┬────────┘
-         │ TCP + SCRAM-SHA-256
-         │
-         ▼
-┌─────────────────┐
-│ pgmoneta server │ ◄─── Backup/restore operations
-└─────────────────┘
+``` text
++-----------------+
+|   MCP Client    | (Claude, ChatGPT, etc.)
+|  (AI Assistant) |
++--------+--------+
+         | MCP Protocol
+         | (JSON-RPC)
+         v
++-----------------+
+| PgmonetaHandler | <--- Handles MCP requests
+|   (handler.rs)  |      Routes to appropriate tools
++--------+--------+
+         |
+         v
++-----------------+
+| PgmonetaClient  | <--- Manages communication
+|   (client.rs)   |      with pgmoneta server
++--------+--------+
+         | TCP + SCRAM-SHA-256
+         |
+         v
++-----------------+
+| pgmoneta server | <--- Backup/restore operations
++-----------------+
 ```
 
 ### Core Components

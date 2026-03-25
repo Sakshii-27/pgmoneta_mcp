@@ -6,6 +6,16 @@
 users can explore pgmoneta backups in natural language without sending prompts or
 backup metadata to a cloud service.
 
+## What is a local LLM?
+
+A local LLM is an artificial intelligence model that runs entirely on your own
+hardware. Unlike cloud-based services, all data processing, storage, and
+inference stays within your private infrastructure. This ensures privacy and
+data sovereignty while providing natural language capabilities for database
+management.
+
+## Functionality
+
 The local LLM integration is built around three parts:
 
 * The **pgmoneta MCP server**, which exposes pgmoneta operations as MCP tools
@@ -19,7 +29,7 @@ The overall flow looks like this:
 User prompt
     |
     v
-Local LLM runtime
+Local LLM runtime (Ollama or llama.cpp)
     |
     v
 pgmoneta_mcp tools
@@ -28,75 +38,95 @@ pgmoneta_mcp tools
 pgmoneta
 ```
 
-## Current scope
+## Comparison
 
-In the current code base, the local LLM integration is implemented through the
-optional `[llm]` configuration section and the `src/llm/ollama.rs` client.
-That means the supported provider today is:
+When choosing a local runtime for **pgmoneta_mcp**, consider the following trade-offs
+between ease of use and granular control.
 
-* `ollama`
+### Runtime comparison
 
-## Local runtime landscape
+| Feature | Ollama | llama.cpp |
+| :--- | :--- | :--- |
+| **Installation** | Single binary / installer | Download or build binary |
+| **Model Management** | Built-in CLI (`pull`, `list`) | Manual download of `.gguf` files |
+| **Ease of Use** | High (recommended for beginners) | Advanced (manual configuration) |
+| **Control** | Automatic hardware detection | Granular threading/GPU/RAM control |
+| **Performance** | Excellent (balanced) | Maximum (optimized for specific hardware) |
 
-The initial local runtime landscape for **pgmoneta_mcp** is:
+### Pros and Cons
 
-| Runtime | Project | Status in pgmoneta_mcp | Notes |
-| :------ | :------ | :--------------------- | :---- |
-| Ollama | [ollama.com](https://ollama.com) | Supported and documented | Recommended starting point for most users |
+#### Ollama
 
+**Pros:**
+* **Simple installation**: A single binary or system package — no compilation required.
+* **Built-in model management**: Download, list, and switch models using familiar CLI commands (`ollama pull`, `ollama list`, `ollama run`), similar to how Docker manages images.
+* **Automatic hardware detection**: Detects your CPU, RAM, and GPU automatically and selects optimal defaults.
+* **Runs as a persistent service**: Works as a background daemon, so it survives terminal sessions and integrates cleanly into system startup.
+* **Large ecosystem**: Well-documented with an active community and many supported models listed at [ollama.com/library](https://ollama.com/library).
 
-## Requirements
+**Cons:**
+* **Less hardware control**: You cannot easily override the number of GPU layers, thread counts, or memory layout without advanced configuration.
+* **Abstraction layer overhead**: Ollama adds a management layer on top of llama.cpp. For most users this is beneficial, but for advanced hardware tuning it can be limiting.
 
-To use a local model successfully with **pgmoneta_mcp**, make sure that:
+#### llama.cpp
 
-* The runtime is reachable from the machine running the agent
-* The selected model supports tool or function calling
-* The model fits the available CPU, RAM, and optionally GPU resources
-* The MCP server can already reach your pgmoneta management endpoint
+**Pros:**
+* **Granular hardware control**: Expose and tune parameters like `--n-gpu-layers` (how many layers to offload to GPU), `--threads` (CPU thread count), and `--ctx-size` (context window size) to match your exact hardware.
+* **Portable and scriptable**: `llama-server` is a standalone binary that can be embedded in shell scripts, Docker containers, or automation pipelines without a daemon.
+* **Native OpenAI API**: Exposes the standard `/v1/chat/completions` endpoint directly, making it compatible with any OpenAI-compatible client.
+* **Widest quantization support**: Supports every quantization format (`Q2_K`, `Q4_K_M`, `Q8_0`, `IQ3_M` etc.), giving full control over the size vs. quality trade-off.
 
-Tool support matters because the model must be able to request calls such as
-`list_backups` and `get_backup_info` instead of trying to invent backup data.
+**Cons:**
+* **No built-in model registry**: You must manually find, download, and organize `.gguf` model files from sources like Hugging Face.
+* **No model management**: No built-in equivalent of `ollama list` or `ollama pull`. You manage model files and versions yourself.
+* **Manual startup**: Requires a precise launch command each time (`--model`, `--port`, `--ctx-size`, etc.), with no automatic restart on failure.
 
-## Supported models
+## Recommended models
 
-The following models are good starting points for local tool-calling workflows:
+When choosing an LLM for **pgmoneta_mcp**, keep these key concepts in mind regardless of which provider you choose:
 
-| Model | Size | RAM Needed | Notes |
-| :---- | :--- | :--------- | :---- |
-| `llama3.1:8b` | ~4.7 GB | ~8 GB | Balanced default choice |
-| `llama3.2:3b` | ~2.0 GB | ~4 GB | Lightweight option |
-| `qwen2.5:0.5b` | ~0.4 GB | ~1 GB | Minimal footprint |
-| `qwen2.5:3b` | ~1.9 GB | ~4 GB | Good balance of speed and quality |
-| `qwen2.5:7b` | ~4.7 GB | ~8 GB | Stronger tool-calling performance |
-| `mistral:7b` | ~4.1 GB | ~8 GB | Solid general-purpose option |
-| `mixtral:8x7b` | ~26.0 GB | ~32 GB | Higher quality with higher hardware cost |
+1. **Instruct vs. Base**: You must use a model fine-tuned for instruction following or chat (usually labeled `Instruct` or `Chat`). Base models are not trained to follow instructions and will fail at tool calling.
+2. **Hardware Limits**: The model's listed file size indicates the *minimum* RAM needed simply to load its weights. Actual runtime usage will be 20-30% higher because the runtime allocates memory for context caching and inference buffers.
 
-## Configuration
+### Understanding model names
 
-Local LLM integration is configured through the optional `[llm]` section in
-`pgmoneta-mcp.conf`.
+Whether you are pulling a model via Ollama or downloading a `.gguf` file for `llama.cpp`, the model name usually encodes its size and compression level:
 
-``` ini
-[llm]
-provider = ollama
-endpoint = http://localhost:11434
-model = llama3.1
-max_tool_rounds = 10
+``` text
+Qwen2.5-7B-Instruct-Q4_K_M
+       ^^^           ^^^^^^
+        |               |
+        |               +-- Quantization level (Qy)
+        +-- Parameter count (xB)
 ```
 
-The available properties are:
+**Parameter count (`xB`)**
 
-| Property | Default | Required | Description |
-| :------- | :------ | :------- | :---------- |
-| `provider` |  | Yes | The local LLM backend |
-| `endpoint` |  | Yes | Base URL for the local LLM server |
-| `model` | `llama3.1` for Ollama | No | Model name sent to the runtime |
-| `max_tool_rounds` | `10` | No | Maximum number of tool-calling rounds before aborting |
+The `xB` part (e.g. `3B`, `7B`, `8B`) stands for *billions of parameters* — the number of internal connections in the neural network. A larger model uses more disk space and RAM. In return, you get better **tool calling accuracy** — the model is more likely to pick the right tool, pass correct arguments, and reason correctly about the results.
 
-If you do not configure an `[llm]` section, the MCP server still works as a normal
-tool server for MCP clients such as VS Code or other AI assistants.
+For **pgmoneta_mcp**, tool calling is what matters most. A model that is too small may:
+- Call the wrong tool or skip tools entirely
+- Pass incorrect arguments (wrong server name, wrong backup ID)
+- Fail to follow multi-step instructions
 
-## Next step
+Start with a `7B` or `8B` model as a baseline. If the model repeatedly calls wrong tools or produces incorrect results, move to a larger model. A `3B` model needs roughly half the RAM of a `7B` model, but at a cost in reasoning quality.
 
-The next chapter documents the recommended local runtime, **Ollama**, including
-installation, model setup, and configuration.
+**Quantization level (`Qy`)**
+
+Models are compressed ("quantized") to reduce memory usage. The `Q` suffix indicates the compression level. `Q4_K_M` (4-bit quantization) is the recommended starting point for most setups — it uses roughly half the RAM of an uncompressed model with only a minor drop in reasoning quality.
+
+### Verified models
+
+The following models are verified for tool-calling performance. Sizes are based on the recommended Q4 quantization.
+
+| Model | Size (Disk) | RAM Needed | Performance |
+| :---- | :--- | :--------- | :---- |
+| Qwen 2.5 (0.5B) | ~0.4 GB | ~1 GB | Minimal footprint |
+| Llama 3.2 (3B) | ~2.0 GB | ~4 GB | Fast and lightweight |
+| Qwen 2.5 (3B) | ~1.9 GB | ~4 GB | High speed, decent quality |
+| Llama 3.1 (8B) | ~4.7 GB | ~8 GB | Balanced default choice |
+| Qwen 2.5 (7B) | ~4.7 GB | ~8 GB | Excellent tool-calling accuracy |
+| Mistral (7B) | ~4.1 GB | ~8 GB | Solid general-purpose model |
+| Mixtral (8x7B) | ~26.0 GB | ~32 GB | High quality, high hardware cost |
+
+Examples of provider-specific model names can be found in the Ollama and llama.cpp sections below.

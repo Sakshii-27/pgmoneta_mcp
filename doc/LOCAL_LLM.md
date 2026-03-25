@@ -8,9 +8,17 @@ implementation details.
 
 This guide covers:
 
-* Installing Ollama
+* Installing Ollama or llama.cpp
 * Downloading and validating a model
 * Configuring the `[llm]` section in `pgmoneta-mcp.conf`
+
+## Selecting a model
+
+When choosing an LLM for **pgmoneta_mcp**, keep these key concepts in mind regardless of which provider you choose:
+
+1. **Instruct vs. Base**: You must use a model fine-tuned for instruction following or chat (usually labeled `Instruct` or `Chat`). Base models are not trained to follow instructions and will fail at tool calling.
+2. **Quantization**: Models are compressed ("quantized") to fit into consumer hardware. The default standard is **Q4** (4-bit quantization), which provides an excellent balance of speed, size, and reasoning quality.
+3. **Hardware Limits**: The model's listed file size indicates the *minimum* RAM needed simply to load its weights. Actual runtime usage will be 20-30% higher because the runtime allocates memory for context caching and inference buffers.
 
 ## Ollama
 
@@ -98,9 +106,9 @@ curl -s http://localhost:11434/api/show -d '{"model": "llama3.1"}' | grep capabi
 
 ### Configuration
 
-Add an `[llm]` section to your `pgmoneta-mcp.conf`
+Add an `[llm]` section to your `pgmoneta-mcp.conf`:
 
-```
+```ini
 [llm]
 provider = ollama
 endpoint = http://localhost:11434
@@ -108,22 +116,75 @@ model = llama3.1
 max_tool_rounds = 10
 ```
 
+## llama.cpp
+
+[llama.cpp](https://github.com/ggml-org/llama.cpp) provides direct control over hardware for running LLMs locally.
+
+### Install
+
+Download the `llama-server` binary from the [releases page](https://github.com/ggml-org/llama.cpp/releases).
+
+### Download models
+
+Download a `.gguf` model file from a source such as [Hugging Face](https://huggingface.co/). Search for a model name followed by `GGUF` to find the right repository (e.g. `Qwen2.5-7B-Instruct GGUF`).
+
+For **pgmoneta_mcp**, the following specific files are suitable choices:
+
+| Model file | Size | RAM needed | Notes |
+| :--------- | :--- | :--------- | :---- |
+| `Qwen2.5-7B-Instruct-Q4_K_M.gguf` | ~4.7 GB | ~8 GB | Strong tool calling accuracy |
+| `Qwen2.5-3B-Instruct-Q4_K_M.gguf` | ~1.9 GB | ~4 GB | Lower hardware requirement, some accuracy trade-off |
+| `Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf` | ~4.7 GB | ~8 GB | Widely used, good general reasoning |
+
+### Start the server
+
+```
+llama-server \
+  --model models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf \
+  --port 8080 \
+  --ctx-size 8192
+```
+
+Verify it is running:
+
+```
+curl http://localhost:8080/health
+```
+
+### Configuration
+
+Add an `[llm]` section to your `pgmoneta-mcp.conf`:
+
+```ini
+[llm]
+provider = llama.cpp
+endpoint = http://localhost:8080
+model = Meta-Llama-3.1-8B-Instruct-Q4_K_M
+max_tool_rounds = 10
+```
+
 ### Configuration properties
 
 | Property | Default | Required | Description |
 | :------- | :------ | :------- | :---------- |
-| provider |  | Yes | The LLM provider backend |
+| provider |  | Yes | The LLM provider backend (`ollama` or `llama.cpp`) |
 | endpoint |  | Yes | The URL of the LLM inference server |
-| model | llama3.1 (Ollama) | No | The model name to use for inference |
+| model |  | Yes | The model name to use for inference |
 | max_tool_rounds | 10 | No | Maximum tool-calling iterations per user prompt |
 
 ### Quick verification
 
-1. Confirm Ollama is running:
+1. Confirm your runtime is running:
 
-```
-curl http://localhost:11434/
-```
+    For Ollama:
+    ```
+    curl http://localhost:11434/
+    ```
+
+    For llama.cpp:
+    ```
+    curl http://localhost:8080/health
+    ```
 
 2. Start pgmoneta MCP with your config file:
 

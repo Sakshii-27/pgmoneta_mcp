@@ -30,11 +30,11 @@ The other section, called `[pgmoneta]`, is where you configure connection with `
 ## [llm]
 
 Optional. Configures the local LLM integration for AI-powered backup management.
-See [LOCAL_LLM.md](LOCAL_LLM.md) for detailed setup instructions.
+See the manual or [LOCAL_LLM.md](LOCAL_LLM.md) for detailed setup instructions.
 
 | Property | Default | Unit | Required | Description |
 | :------- | :------ | :--- | :------- | :---------- |
-| provider | | String | Yes | The LLM provider backend |
+| provider | | String | Yes | The local LLM backend (`ollama` or `llama.cpp`) |
 | endpoint | | String | Yes | The URL of the LLM inference server |
-| model | llama3.1 (Ollama) | String | No | The model name to use for inference |
+| model | | String | Yes | The model name to use for inference |
 | max_tool_rounds | 10 | Int | No | Maximum tool-calling iterations per user prompt |

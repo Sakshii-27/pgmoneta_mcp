@@ -16,29 +16,29 @@ The security module is defined and implemented in `src/security.rs` and provides
 
 ### Architecture
 
-```
-┌──────────────────────────────────────┐
-│         SecurityUtil                 │
-├──────────────────────────────────────┤
-│  Master Key Management               │
-│  - load_master_key()                 │
-│  - write_master_key()                │
-│                                      │
-│  Encryption/Decryption               │
-│  - encrypt_to_base64_string()        │
-│  - decrypt_from_base64_string()      │
-│  - encrypt_text()                    │
-│  - decrypt_text()                    │
-│                                      │
-│  Authentication                      │
-│  - connect_to_server()               │
-│  - SCRAM-SHA-256 handshake           │
-│                                      │
-│  Utilities                           │
-│  - generate_password()               │
-│  - base64_encode()                   │
-│  - base64_decode()                   │
-└──────────────────────────────────────┘
+``` text
++--------------------------------------+
+|         SecurityUtil                 |
++--------------------------------------+
+|  Master Key Management               |
+|  - load_master_key()                 |
+|  - write_master_key()                |
+|                                      |
+|  Encryption/Decryption               |
+|  - encrypt_to_base64_string()        |
+|  - decrypt_from_base64_string()      |
+|  - encrypt_text()                    |
+|  - decrypt_text()                    |
+|                                      |
+|  Authentication                      |
+|  - connect_to_server()               |
+|  - SCRAM-SHA-256 handshake           |
+|                                      |
+|  Utilities                           |
+|  - generate_password()               |
+|  - base64_encode()                   |
+|  - base64_decode()                   |
++--------------------------------------+
 ```
 
 ### SecurityUtil Structure

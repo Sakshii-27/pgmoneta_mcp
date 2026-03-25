@@ -223,24 +223,20 @@ fn normalize_configuration(mut conf: Configuration) -> anyhow::Result<Configurat
         }
 
         if llm.model.is_empty() {
-            llm.model = default_llm_model_for_provider(&llm.provider)?;
-        } else {
-            validate_llm_provider(&llm.provider)?;
+            return Err(anyhow!("LLM model must not be empty"));
         }
+
+        validate_llm_provider(&llm.provider)?;
     }
 
     Ok(conf)
 }
 
-fn default_llm_model_for_provider(provider: &str) -> anyhow::Result<String> {
-    match provider {
-        "ollama" => Ok("llama3.1".to_string()),
+fn validate_llm_provider(provider: &str) -> anyhow::Result<()> {
+    match provider.to_lowercase().as_str() {
+        "ollama" | "llama.cpp" => Ok(()),
         _ => Err(anyhow!("Unsupported LLM provider '{}'", provider)),
     }
-}
-
-fn validate_llm_provider(provider: &str) -> anyhow::Result<()> {
-    default_llm_model_for_provider(provider).map(|_| ())
 }
 
 fn default_compression() -> String {

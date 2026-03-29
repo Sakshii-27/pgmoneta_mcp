@@ -4,7 +4,7 @@
   <img src="doc/images/logo-reversed-transparent.svg" alt="pgmoneta_mcp logo" width="256" />
 </p>
 
-**pgmoneta MCP** is the official pgmoneta [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro) server built
+**pgmoneta MCP** is the official [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro) server built
 for [pgmoneta](https://pgmoneta.github.io/), a backup / restore solution for [PostgreSQL](https://www.postgresql.org).
 
 ## Overview

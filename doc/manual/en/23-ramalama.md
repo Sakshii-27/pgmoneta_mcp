@@ -15,12 +15,25 @@ dnf install ramalama
 
 For other platforms, follow the instructions at [ramalama.ai](https://ramalama.ai).
 
-### Download models
+### Download models & Storage Management
 
-RamaLama automatically handles pulling models from registries like Hugging Face or OCI. You can pull a model explicitly:
+RamaLama automatically handles pulling models from registries like Hugging Face or OCI.
 
-``` sh
-ramalama pull granite-code
+By default, RamaLama pulls layers using container tooling and stores them in your system's temporary directory and container storage. To change the storage path to a larger drive (e.g., `/mnt/ai/ramalama`), use the `--store` flag:
+
+**Small setup** (Laptop friendly):
+```sh
+ramalama --store /mnt/ai/ramalama pull llama3.2:3b
+```
+
+**Best setup** (Recommended):
+```sh
+ramalama --store /mnt/ai/ramalama pull granite-code:8b
+```
+
+**Full setup** (Workstation only):
+```sh
+ramalama --store /mnt/ai/ramalama pull llama3.1:70b
 ```
 
 ### Start the server
@@ -28,7 +41,7 @@ ramalama pull granite-code
 Start the RamaLama server using your chosen model. RamaLama will automatically run the model inside a container:
 
 ``` sh
-ramalama serve granite-code
+ramalama --store /mnt/ai/ramalama serve granite-code:8b
 ```
 
 The default endpoint will be `http://localhost:8080`.

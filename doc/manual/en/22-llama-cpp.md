@@ -18,6 +18,10 @@ Instructions can be found on the [llama.cpp releases page](https://github.com/gg
 
 `llama.cpp` does not have a built-in model registry. You must find, evaluate, and download a `.gguf` model file manually.
 
+### Storage Management
+
+Download `.gguf` files directly to your preferred high-capacity drive (e.g., `/mnt/ai/models/`) to avoid disk exhaustion.
+
 **Step 1: Find a model on Hugging Face**
 
 Go to [huggingface.co](https://huggingface.co/) and search for a model name followed by `GGUF`, for example:
@@ -44,13 +48,21 @@ For **pgmoneta_mcp**, the following specific files are suitable choices:
 
 **Step 3: Download the file**
 
-Use the Hugging Face web interface or the CLI:
+Use the Hugging Face web interface or the CLI below for our three standard setups:
 
+**Small setup** (Laptop friendly; `Llama-3.2-3B`):
 ``` sh
-pip install huggingface-hub
-huggingface-cli download bartowski/Qwen2.5-7B-Instruct-GGUF \
-  Qwen2.5-7B-Instruct-Q4_K_M.gguf \
-  --local-dir ./models
+wget https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf -P /mnt/ai/models/
+```
+
+**Best setup** (Recommended; `granite-3.0-8b`):
+``` sh
+wget https://huggingface.co/bartowski/granite-3.0-8b-instruct-GGUF/resolve/main/granite-3.0-8b-instruct-Q4_K_M.gguf -P /mnt/ai/models/
+```
+
+**Full setup** (Workstation only; `Meta-Llama-3.1-70B`):
+``` sh
+wget https://huggingface.co/bartowski/Meta-Llama-3.1-70B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf -P /mnt/ai/models/
 ```
 
 ### Start the server
@@ -59,7 +71,7 @@ Start `llama-server` with your downloaded model:
 
 ``` sh
 llama-server \
-  --model models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf \
+  --model /mnt/ai/models/granite-3.0-8b-instruct-Q4_K_M.gguf \
   --port 8080 \
   --ctx-size 8192
 ```
@@ -74,7 +86,7 @@ Add or update the `[llm]` section in `pgmoneta-mcp.conf`:
 [llm]
 provider = llama.cpp
 endpoint = http://localhost:8080
-model = Meta-Llama-3.1-8B-Instruct-Q4_K_M
+model = granite-3.0-8b-instruct-Q4_K_M
 max_tool_rounds = 10
 ```
 

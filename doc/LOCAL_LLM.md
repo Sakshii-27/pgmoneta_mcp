@@ -20,6 +20,16 @@ When choosing an LLM for **pgmoneta_mcp**, keep these key concepts in mind regar
 2. **Quantization**: Models are compressed ("quantized") to fit into consumer hardware. The default standard is **Q4** (4-bit quantization), which provides an excellent balance of speed, size, and reasoning quality.
 3. **Hardware Limits**: The model's listed file size indicates the *minimum* RAM needed simply to load its weights. Actual runtime usage will be 20-30% higher because the runtime allocates memory for context caching and inference buffers.
 
+## Setups & Storage Management
+
+To prevent running out of disk space ("No space left on device") and ensure you have the hardware to run models, we define three standard setups:
+
+* **Small setup**: Aimed at standard laptops. Uses ~3B parameter models requiring 2-4GB of RAM/VRAM and disk space. E.g., `llama3.2:3b`.
+* **Best setup**: The recommended balance of size and quality. Requires 8-10GB of RAM/VRAM and disk space. E.g., `granite-code:8b` or `llama3.1:8b`.
+* **Full setup**: For powerful workstations or servers (32GB+ RAM/VRAM). Uses large models requiring 40GB+ of disk space. E.g., `llama3.1:70b`.
+
+**Important**: Large models consume significant storage space. By default, runtimes store downloaded model files in standard cache directories (like `~/.ollama` or `~/.cache/huggingface`). If your root drive (`/`) has limited space, you **must** override the storage/cache directory to a larger volume. Instructions to do this are provided for each backend below.
+
 ### Model Compatibility Matrix
 
 The model must support **tool calling** (function calling) to work with pgmoneta MCP tools.
@@ -51,10 +61,32 @@ Start the Ollama server as a background service:
 ollama serve
 ```
 
-Pull the recommended model:
+### Storage Management
+
+By default, Ollama stores models in `/usr/share/ollama/.ollama/models` (or `~/.ollama/models` for user installs). To avoid filling up your root partition, redirect this directory using `OLLAMA_MODELS`:
 
 ```sh
-ollama pull llama3.1:8b
+export OLLAMA_MODELS=/mnt/ai/ollama/models
+# For systemd service:
+# systemctl set-environment OLLAMA_MODELS=/mnt/ai/ollama/models
+# systemctl restart ollama
+```
+
+### Precise Commands
+
+**Small setup** (Laptop friendly):
+```sh
+OLLAMA_MODELS=/mnt/ai/ollama/models ollama pull llama3.2:3b
+```
+
+**Best setup** (Recommended):
+```sh
+OLLAMA_MODELS=/mnt/ai/ollama/models ollama pull granite-code:8b
+```
+
+**Full setup** (Workstation only):
+```sh
+OLLAMA_MODELS=/mnt/ai/ollama/models ollama pull llama3.1:70b
 ```
 
 ### pgmoneta-mcp.conf Example
@@ -63,7 +95,7 @@ ollama pull llama3.1:8b
 [llm]
 provider = ollama
 endpoint = http://localhost:11434
-model = llama3.1:8b
+model = granite-code:8b
 max_tool_rounds = 10
 ```
 
@@ -79,15 +111,30 @@ You must download the `llama-server` binary and the model file manually.
 dnf install wget
 ```
 
-Download the latest `llama-server` from the [official releases](https://github.com/ggml-org/llama.cpp/releases), and download a `.gguf` model file from Hugging Face (e.g., `Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf`).
+Download the latest `llama-server` from the [official releases](https://github.com/ggml-org/llama.cpp/releases).
 
-Start the server:
+### Storage Management
 
+llama.cpp requires you to download the `.gguf` files manually. Simply download these files directly to your preferred high-capacity drive (e.g., `/mnt/ai/models/`) to avoid disk exhaustion.
+
+### Precise Commands
+
+**Small setup** (Laptop friendly):
 ```sh
-llama-server \
-  --model models/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf \
-  --port 8080 \
-  --ctx-size 8192
+wget https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf -P /mnt/ai/models/
+llama-server --model /mnt/ai/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf --port 8080 --ctx-size 8192
+```
+
+**Best setup** (Recommended):
+```sh
+wget https://huggingface.co/bartowski/granite-3.0-8b-instruct-GGUF/resolve/main/granite-3.0-8b-instruct-Q4_K_M.gguf -P /mnt/ai/models/
+llama-server --model /mnt/ai/models/granite-3.0-8b-instruct-Q4_K_M.gguf --port 8080 --ctx-size 8192
+```
+
+**Full setup** (Workstation only):
+```sh
+wget https://huggingface.co/bartowski/Meta-Llama-3.1-70B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf -P /mnt/ai/models/
+llama-server --model /mnt/ai/models/Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf --port 8080 --ctx-size 8192
 ```
 
 ### pgmoneta-mcp.conf Example
@@ -96,7 +143,7 @@ llama-server \
 [llm]
 provider = llama.cpp
 endpoint = http://localhost:8080
-model = Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf
+model = granite-3.0-8b-instruct-Q4_K_M.gguf
 max_tool_rounds = 10
 ```
 
@@ -112,10 +159,25 @@ It is available natively on RPM-based distributions:
 dnf install ramalama
 ```
 
-RamaLama handles pulling models automatically. Start the server for the recommended model:
+### Storage Management
 
+RamaLama pulls layers natively using container tooling. By default this utilizes your system's temporary directory and container storage. To change the storage path to a larger drive (e.g., `/mnt/ai/ramalama`), use the `--store` flag.
+
+### Precise Commands
+
+**Small setup** (Laptop friendly):
 ```sh
-ramalama serve granite-code
+ramalama --store /mnt/ai/ramalama serve llama3.2:3b
+```
+
+**Best setup** (Recommended):
+```sh
+ramalama --store /mnt/ai/ramalama serve granite-code:8b
+```
+
+**Full setup** (Workstation only):
+```sh
+ramalama --store /mnt/ai/ramalama serve llama3.1:70b
 ```
 
 The default endpoint is `http://localhost:8080`.
@@ -126,7 +188,7 @@ The default endpoint is `http://localhost:8080`.
 [llm]
 provider = ramalama
 endpoint = http://localhost:8080
-model = granite-code
+model = granite-code:8b
 max_tool_rounds = 10
 ```
 
@@ -138,23 +200,41 @@ max_tool_rounds = 10
 
 Install vLLM via pip (a virtual environment is recommended):
 
-```
+```sh
 pip install vllm
 ```
 
-### Start the server
+### Storage Management
 
-vLLM automatically downloads standard Safetensor models from Hugging Face:
+vLLM utilizes the standard Hugging Face cache directory (`~/.cache/huggingface`). Set the `HF_HOME` environment variable to a large mounted drive to prevent disk space exhaustion.
 
+### Precise Commands
+
+**Small setup** (Laptop friendly):
+```sh
+HF_HOME=/mnt/ai/huggingface python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.2-3B-Instruct \
+  --port 8000
 ```
-python -m vllm.entrypoints.openai.api_server \
+
+**Best setup** (Recommended):
+```sh
+HF_HOME=/mnt/ai/huggingface python -m vllm.entrypoints.openai.api_server \
   --model ibm-granite/granite-3.0-8b-instruct \
   --port 8000
 ```
 
+**Full setup** (Workstation only):
+```sh
+HF_HOME=/mnt/ai/huggingface python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Meta-Llama-3.1-70B-Instruct \
+  --port 8000 \
+  --tensor-parallel-size 4
+```
+
 Verify it is running:
 
-```
+```sh
 curl http://localhost:8000/v1/models
 ```
 

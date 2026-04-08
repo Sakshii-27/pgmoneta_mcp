@@ -23,25 +23,41 @@ vLLM does not require you to manually hunt for model files. It automatically pul
 
 You simply specify the Hugging Face repository ID (e.g., `ibm-granite/granite-3.0-8b-instruct`).
 
-For **pgmoneta_mcp**, the following specific Hugging Face repository IDs are suitable choices:
+### Storage Management
 
-| Model ID | RAM needed | Notes |
-| :------- | :--------- | :---- |
-| `ibm-granite/granite-3.0-8b-instruct` | ~16 GB | **Default**. Built specifically for coding and tool-calling |
-| `Qwen/Qwen2.5-7B-Instruct` | ~16 GB | Strong tool calling accuracy |
-| `Qwen/Qwen2.5-3B-Instruct` | ~8 GB | Lower hardware requirement, some accuracy trade-off |
-| `meta-llama/Llama-3.1-8B-Instruct` | ~16 GB | Widely used, good general reasoning |
+vLLM utilizes the standard Hugging Face cache directory (`~/.cache/huggingface`). Set the `HF_HOME` environment variable to a large mounted drive to prevent disk space exhaustion:
 
-*(Note: vLLM loads raw unquantized or 16-bit weight SafeTensors by default, so RAM/VRAM requirements are significantly higher than GGUF equivalents unless using specific AWQ/GPTQ models).*
+```sh
+export HF_HOME=/mnt/ai/huggingface
+```
+
+> [!NOTE]
+> vLLM loads raw unquantized or 16-bit weight SafeTensors by default. Its RAM/VRAM requirements and disk storage needs are therefore **significantly higher** than GGUF equivalents (like llama.cpp or Ollama) unless you explicitly use models pre-quantized in AWQ/GPTQ formats.
 
 ### Start the server
 
 Start the vLLM server by pointing the `openai.api_server` entrypoint to your desired model. vLLM will automatically download the model weights to the Hugging Face cache if they are not already present.
 
+**Small setup** (Laptop friendly, ~8GB RAM req):
 ```sh
-python -m vllm.entrypoints.openai.api_server \
+HF_HOME=/mnt/ai/huggingface python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Llama-3.2-3B-Instruct \
+  --port 8000
+```
+
+**Best setup** (Recommended, ~16GB RAM req):
+```sh
+HF_HOME=/mnt/ai/huggingface python -m vllm.entrypoints.openai.api_server \
   --model ibm-granite/granite-3.0-8b-instruct \
   --port 8000
+```
+
+**Full setup** (Workstation only):
+```sh
+HF_HOME=/mnt/ai/huggingface python -m vllm.entrypoints.openai.api_server \
+  --model meta-llama/Meta-Llama-3.1-70B-Instruct \
+  --port 8000 \
+  --tensor-parallel-size 4
 ```
 
 The default endpoint will be `http://localhost:8000`.

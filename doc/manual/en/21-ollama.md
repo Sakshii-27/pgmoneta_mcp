@@ -40,13 +40,34 @@ curl http://localhost:11434/
 
 If the service is up, the response should confirm that Ollama is running.
 
+### Storage Management
+
+By default, Ollama stores models in `/usr/share/ollama/.ollama/models` (or `~/.ollama/models` for user installs). To avoid filling up your root partition, redirect this directory using `OLLAMA_MODELS`:
+
+```sh
+export OLLAMA_MODELS=/mnt/ai/ollama/models
+# For systemd service:
+# systemctl set-environment OLLAMA_MODELS=/mnt/ai/ollama/models
+# systemctl restart ollama
+```
+
 ### Pull a model
 
 Before using a model, download it locally. The model name here must match exactly what you configure in `pgmoneta-mcp.conf`. For example:
 
-``` sh
-ollama pull llama3.1
-ollama pull qwen2.5:3b
+**Small setup** (Laptop friendly):
+```sh
+OLLAMA_MODELS=/mnt/ai/ollama/models ollama pull llama3.2:3b
+```
+
+**Best setup** (Recommended):
+```sh
+OLLAMA_MODELS=/mnt/ai/ollama/models ollama pull granite-code:8b
+```
+
+**Full setup** (Workstation only):
+```sh
+OLLAMA_MODELS=/mnt/ai/ollama/models ollama pull llama3.1:70b
 ```
 
 **Verify downloaded models**

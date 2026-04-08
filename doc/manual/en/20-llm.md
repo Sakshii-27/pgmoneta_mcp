@@ -133,6 +133,16 @@ When choosing an LLM for **pgmoneta_mcp**, keep these key concepts in mind regar
 1. **Instruct vs. Base**: You must use a model fine-tuned for instruction following or chat (usually labeled `Instruct` or `Chat`). Base models are not trained to follow instructions and will fail at tool calling.
 2. **Hardware Limits**: The model's listed file size indicates the *minimum* RAM needed simply to load its weights. Actual runtime usage will be 20-30% higher because the runtime allocates memory for context caching and inference buffers.
 
+### Setups & Storage Management
+
+To prevent running out of disk space ("No space left on device") and ensure you have the hardware to run models, we define three standard setups:
+
+* **Small setup**: Aimed at standard laptops. Uses ~3B parameter models requiring 2-4GB of RAM/VRAM and disk space. E.g., `llama3.2:3b`.
+* **Best setup**: The recommended balance of size and quality. Requires 8-10GB of RAM/VRAM and disk space. E.g., `granite-code:8b` or `llama3.1:8b`.
+* **Full setup**: For powerful workstations or servers (32GB+ RAM/VRAM). Uses large models requiring 40GB+ of disk space. E.g., `llama3.1:70b`.
+
+**Important**: Large models consume significant storage space. By default, runtimes store downloaded model files in standard cache directories (like `~/.ollama` or `~/.cache/huggingface`). If your root drive (`/`) has limited space, you **must** override the storage/cache directory to a larger mounted volume. Instructions to do this are provided for each backend in the subsequent chapters.
+
 ### Understanding model names
 
 Whether you are pulling a model via Ollama or RamaLama, or downloading a `.gguf` file for `llama.cpp`, the model name usually encodes its size and compression level:

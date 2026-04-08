@@ -12,12 +12,26 @@ On first launch, the container will download the default model (`llama3.1:8b`).
 This takes a few minutes depending on your connection. Subsequent starts are instant
 because models are stored in a persistent Docker volume.
 
-## Configuration
+## Configuration & Setups
 
-Set the `OLLAMA_MODEL` environment variable to use a different model:
+To avoid disk space issues (`ENOSPC`) with large AI models, you should define a custom docker volume or bind mount point for the model downloads if your root partition is small.
+By default, models are persisted in a Docker volume named `ollama`. You can override this in `docker-compose.yml` to point to a high-capacity drive (e.g., `/mnt/ai/ollama:/root/.ollama`).
 
+We define three standard setups based on your hardware capabilities. Start the container with the respective environment variable:
+
+**Small Setup** (Laptop friendly; ~4GB RAM/Disk):
+```sh
+OLLAMA_MODEL=llama3.2:3b docker compose up -d
 ```
-OLLAMA_MODEL=qwen2.5:7b docker compose up -d
+
+**Best Setup** (Recommended balance; ~8GB RAM/Disk):
+```sh
+OLLAMA_MODEL=granite-code:8b docker compose up -d
+```
+
+**Full Setup** (Workstation; ~40GB+ RAM/Disk):
+```sh
+OLLAMA_MODEL=llama3.1:70b docker compose up -d
 ```
 
 ## pgmoneta MCP configuration

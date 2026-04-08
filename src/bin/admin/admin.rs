@@ -16,7 +16,6 @@ use anyhow::{Result, anyhow};
 use clap::{Parser, Subcommand};
 use pgmoneta_mcp::configuration::{self, UserConf};
 use pgmoneta_mcp::security::SecurityUtil;
-use rand::RngCore;
 use rpassword::prompt_password;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -60,8 +59,6 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Create or update the master key
-    MasterKey,
     /// Manage a specific user
     User {
         #[command(subcommand)]
@@ -101,14 +98,6 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Commands::MasterKey => {
-            MasterKey::set_master_key(
-                args.password.as_deref(),
-                args.generate,
-                args.length,
-                args.format,
-            )?;
-        }
         Commands::User { action } => {
             let file = args
                 .file
@@ -379,57 +368,6 @@ impl User {
     }
 }
 
-struct MasterKey;
-
-impl MasterKey {
-    pub fn set_master_key(
-        password: Option<&str>,
-        generate: bool,
-        length: usize,
-        format: OutputFormat,
-    ) -> Result<()> {
-        let sutil = SecurityUtil::new();
-        let final_password: String;
-
-        let master_key = if let Some(pwd) = password {
-            final_password = pwd.to_string();
-            &final_password
-        } else if generate {
-            final_password = sutil.generate_password(length)?;
-            println!("Generated master key: {}", final_password);
-            &final_password
-        } else {
-            final_password = prompt_password("Please enter your master key: ")?;
-            let m = prompt_password("Please enter your master key again: ")?;
-
-            if final_password != m {
-                return Err(anyhow!("Passwords do not match"));
-            }
-            &final_password
-        };
-
-        let mut salt = [0u8; 16];
-        rand::rng().fill_bytes(&mut salt);
-        sutil.write_master_key(master_key, &salt)?;
-
-        User::print_response(
-            format,
-            AdminResponse {
-                command: "master-key".to_string(),
-                outcome: "success".to_string(),
-                users: None,
-                generated_password: if generate {
-                    Some(final_password.clone())
-                } else {
-                    None
-                },
-            },
-        );
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,17 +381,21 @@ mod tests {
         path
     }
 
+    fn ensure_master_key_exists() {
+        let sutil = SecurityUtil::new();
+        if sutil.load_master_key().is_err() {
+            sutil
+                .write_master_key("test_master_pass", &[0u8; 16])
+                .unwrap();
+        }
+    }
+
     #[test]
     fn test_add_edit_remove_user() {
         let temp_file = get_temp_file("pgmoneta_mcp_test_users.conf");
         let temp_file_str = temp_file.to_str().unwrap();
 
-        // Ensure master key exists for testing
-        let sutil = SecurityUtil::new();
-        if sutil.load_master_key().is_err() {
-            MasterKey::set_master_key(Some("test_master_pass"), false, 64, OutputFormat::Text)
-                .unwrap();
-        }
+        ensure_master_key_exists();
 
         // Clean up before test
         if temp_file.exists() {
@@ -504,12 +446,7 @@ mod tests {
         let temp_file = get_temp_file("pgmoneta_mcp_test_users_list.conf");
         let temp_file_str = temp_file.to_str().unwrap();
 
-        // Ensure master key exists for testing
-        let sutil = SecurityUtil::new();
-        if sutil.load_master_key().is_err() {
-            MasterKey::set_master_key(Some("test_master_pass"), false, 64, OutputFormat::Text)
-                .unwrap();
-        }
+        ensure_master_key_exists();
 
         // Clean up before test
         if temp_file.exists() {

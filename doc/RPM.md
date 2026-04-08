@@ -114,15 +114,16 @@ sudo rm -rf /var/log/pgmoneta-mcp/
 
 After installing the RPM, perform the following steps to get pgmoneta-mcp running.
 
-### 1. Set the master key
+### 1. Copy the master key
 
-The master key is used to encrypt user passwords. Set it by running:
+The MCP admin tool encrypts user passwords with `~/.pgmoneta-mcp/master.key`.
+Copy the pgmoneta master key before creating the MCP users file:
 
 ```
-pgmoneta-mcp-admin master-key
+mkdir -p ~/.pgmoneta-mcp
+cp ~/.pgmoneta/master.key ~/.pgmoneta-mcp/master.key
+chmod 600 ~/.pgmoneta-mcp/master.key
 ```
-
-You will be prompted to enter and confirm the master key.
 
 ### 2. Add a user
 

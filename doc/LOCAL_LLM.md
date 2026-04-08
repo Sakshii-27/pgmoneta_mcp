@@ -10,7 +10,7 @@ This guide covers:
 
 * Installing Ollama, RamaLama, llama.cpp, or vLLM
 * Downloading and validating a model
-* Configuring the `[llm]` section in `pgmoneta-mcp.conf`
+* Configuring the `[llm]` section in `pgmoneta-mcp.conf` / `pgmoneta-mcp-client.conf`
 
 ## Selecting a model
 
@@ -42,6 +42,31 @@ The model must support **tool calling** (function calling) to work with pgmoneta
 | `llama3.2:3b` | ~2.0 GB | ~4 GB | Yes | Yes | Yes (GGUF) | Yes | Lightweight option for limited hardware |
 | `qwen2.5:7b` | ~4.7 GB | ~8 GB | Yes | Yes | Yes (GGUF) | Yes | Excellent tool calling capabilities |
 | `mistral:7b` | ~4.1 GB | ~8 GB | Yes | Yes | Yes (GGUF) | Yes | Strong performance for open-source models |
+
+## MCP client
+
+The MCP client is called `pgmoneta-mcp-client`, and its configuration in `pgmoneta-mcp-client.conf` is
+
+```ini
+[pgmoneta_mcp_client]
+url = http://localhost:8000/mcp
+
+[llm]
+provider = ramalama
+endpoint = http://localhost:8080
+model = qwen2.5vl:7b
+max_tool_rounds = 10
+```
+
+for example.
+
+Start the client by
+
+```sh
+pgmoneta-mcp-client -c pgmoneta-mcp-client.conf -u pgmoneta-mcp-users.conf
+```
+
+to enter its interactive mode.
 
 ## Ollama
 
@@ -89,7 +114,7 @@ OLLAMA_MODELS=/mnt/ai/ollama/models ollama pull granite-code:8b
 OLLAMA_MODELS=/mnt/ai/ollama/models ollama pull llama3.1:70b
 ```
 
-### pgmoneta-mcp.conf Example
+### Example
 
 ```ini
 [llm]
@@ -105,7 +130,7 @@ max_tool_rounds = 10
 
 ### Basic Setup (Rocky Linux 10)
 
-You must download the `llama-server` binary and the model file manually. 
+You must download the `llama-server` binary and the model file manually.
 
 ```sh
 dnf install wget
@@ -137,7 +162,7 @@ wget https://huggingface.co/bartowski/Meta-Llama-3.1-70B-Instruct-GGUF/resolve/m
 llama-server --model /mnt/ai/models/Meta-Llama-3.1-70B-Instruct-Q4_K_M.gguf --port 8080 --ctx-size 8192
 ```
 
-### pgmoneta-mcp.conf Example
+### Example
 
 ```ini
 [llm]
@@ -182,7 +207,7 @@ ramalama --store /mnt/ai/ramalama serve llama3.1:70b
 
 The default endpoint is `http://localhost:8080`.
 
-### pgmoneta-mcp.conf Example
+### Example
 
 ```ini
 [llm]
@@ -238,7 +263,7 @@ Verify it is running:
 curl http://localhost:8000/v1/models
 ```
 
-### pgmoneta-mcp.conf Example
+### Example
 
 ```ini
 [llm]

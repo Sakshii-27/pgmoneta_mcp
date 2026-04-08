@@ -21,9 +21,11 @@ This is a **breaking change**. The `master.key` file now requires a specific **t
    - `pgmoneta_admins.conf` (or the file specified with `-f`)
 3. Delete the existing master key:
    - On Linux/Unix: `rm ~/.pgmoneta-mcp/master.key`
-4. Regenerate the master key (this will create the new two-line format):
+4. Copy the pgmoneta master key into the MCP home directory (this file must use the new two-line format):
    ```
-   pgmoneta-mcp-admin master-key
+   mkdir -p ~/.pgmoneta-mcp
+   cp ~/.pgmoneta/master.key ~/.pgmoneta-mcp/master.key
+   chmod 600 ~/.pgmoneta-mcp/master.key
    ```
 5. Re-add all users/admins:
    ```
@@ -49,4 +51,3 @@ The encryption system has been upgraded to exclusively use **AES-GCM** (Galois/C
 
 > [!WARNING]
 > This is a breaking change. If your configuration continues to use legacy identifiers (`aes_256_cbc`, etc.), the MCP server will now return an explicit error and fail to connect. You MUST update your configuration to a supported GCM mode.
-

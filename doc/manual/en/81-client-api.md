@@ -58,8 +58,8 @@ struct RequestHeader {
     client_version: String, // MCP client version
     output_format: u8,      // Response format (JSON)
     timestamp: String,      // Request timestamp (YYYYMMDDHHmmss)
-    compression: u8,        // Compression type (NONE)
-    encryption: u8,         // Encryption type (NONE)
+    compression: u8,        // Compression type (ZSTD by default)
+    encryption: u8,         // Encryption type (AES-256-GCM by default)
 }
 ```
 
@@ -82,15 +82,15 @@ struct RequestHeader {
   - Example: `"20260304123045"`
 
 - **compression**: Compression algorithm
-  - `Compression::NONE` (0): No compression (default)
+  - `Compression::NONE` (0): No compression
   - `Compression::GZIP` (1): gzip compression
-  - `Compression::ZSTD` (2): zstd compression
+  - `Compression::ZSTD` (2): zstd compression (default)
   - `Compression::LZ4` (3): lz4 compression
   - `Compression::BZIP2` (4): bzip2 compression
 
 - **encryption**: Encryption algorithm
-  - `Encryption::NONE` (0): No encryption (default)
-  - `Encryption::AES_256_GCM` (1): AES-256-GCM
+  - `Encryption::NONE` (0): No encryption
+  - `Encryption::AES_256_GCM` (1): AES-256-GCM (default)
   - `Encryption::AES_192_GCM` (2): AES-192-GCM
   - `Encryption::AES_128_GCM` (3): AES-128-GCM
 
@@ -119,8 +119,8 @@ where
     "ClientVersion": "0.2.0",
     "Output": 1,
     "Timestamp": "20260304123045",
-    "Compression": 0,
-    "Encryption": 0
+    "Compression": 2,
+    "Encryption": 1
   },
   "Request": {
     // Request-specific fields
@@ -217,8 +217,8 @@ fn build_request_header(command: u32) -> RequestHeader
 **Default values**:
 - `client_version`: From `CLIENT_VERSION` constant
 - `output_format`: `Format::JSON`
-- `compression`: `Compression::NONE`
-- `encryption`: `Encryption::NONE`
+- `compression`: always `Compression::ZSTD`
+- `encryption`: always `Encryption::AES_256_GCM`
 
 **Usage** (internal):
 ```rust

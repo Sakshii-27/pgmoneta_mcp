@@ -43,19 +43,18 @@ pgmoneta -A pgmoneta_admins.conf -c pgmoneta.conf -u pgmoneta_users.conf
 
 ### Master Key
 
-First, create a master key for pgmoneta_mcp. The master key is used to encrypt admin passwords stored in the configuration file.
+First, copy the pgmoneta master key into the MCP home directory. This key is
+used to encrypt admin passwords stored in the MCP user configuration file.
 
 ``` sh
-pgmoneta-mcp-admin master-key
+mkdir -p ~/.pgmoneta-mcp
+cp ~/.pgmoneta/master.key ~/.pgmoneta-mcp/master.key
+chmod 600 ~/.pgmoneta-mcp/master.key
 ```
 
-This will prompt you to enter a master key (minimum 8 characters). The key will be stored in `~/.pgmoneta-mcp/master.key` with secure permissions (0600).
-
-For scripted use, you can provide the master key using the `PGMONETA_PASSWORD` environment variable:
-
-``` sh
-PGMONETA_PASSWORD=your_master_key pgmoneta-mcp-admin master-key
-```
+Do this before creating or updating `pgmoneta-mcp-users.conf`. The running
+`pgmoneta-mcp-server` process must use the same `~/.pgmoneta-mcp/master.key`
+that was used when this users file was created or updated.
 
 ### User Configuration
 
@@ -72,6 +71,10 @@ pgmoneta-mcp-admin -f pgmoneta-mcp-users.conf -U admin -P secretpassword user ad
 ```
 
 The password will be encrypted using the master key and stored in `pgmoneta-mcp-users.conf`.
+
+If the server runs under a different OS user or `HOME`, copy the same key into
+that user's `~/.pgmoneta-mcp/master.key` before starting the server, otherwise
+password decryption will fail when executing tools.
 
 ### Server Configuration
 
@@ -115,7 +118,7 @@ The server can be stopped by pressing Ctrl-C (`^C`) in the console where you sta
 
 ## Administration
 
-[**pgmoneta_mcp**][pgmoneta_mcp] has an administration tool called `pgmoneta-mcp-admin`, which is used to manage the master key and user accounts.
+[**pgmoneta_mcp**][pgmoneta_mcp] has an administration tool called `pgmoneta-mcp-admin`, which is used to manage user accounts.
 
 You can see the commands it supports by using `pgmoneta-mcp-admin --help` which will give:
 
@@ -127,7 +130,6 @@ Usage:
   pgmoneta-mcp-admin [OPTIONS] <COMMAND>
 
 Commands:
-  master-key  Create or update the master key
   user        Manage users
   help        Print this message or the help of the given subcommand(s)
 
@@ -142,24 +144,15 @@ Options:
   -V, --version              Print version
 ```
 
-### Master Key Management
+### Master Key Preparation
 
-To create or update the master key:
-
-``` sh
-pgmoneta-mcp-admin master-key
-```
-
-To generate a random master key:
+Before using `pgmoneta-mcp-admin user ...`, copy the pgmoneta master key into
+the MCP home directory:
 
 ``` sh
-pgmoneta-mcp-admin -g master-key
-```
-
-To generate a master key with specific length:
-
-``` sh
-pgmoneta-mcp-admin -g -l 32 master-key
+mkdir -p ~/.pgmoneta-mcp
+cp ~/.pgmoneta/master.key ~/.pgmoneta-mcp/master.key
+chmod 600 ~/.pgmoneta-mcp/master.key
 ```
 
 ### User Management
@@ -348,10 +341,12 @@ ls -la ~/.pgmoneta-mcp/master.key
 chmod 600 ~/.pgmoneta-mcp/master.key
 ```
 
-3. Recreate the master key if needed:
+3. Re-copy the pgmoneta master key if needed:
 
 ``` sh
-pgmoneta-mcp-admin master-key
+mkdir -p ~/.pgmoneta-mcp
+cp ~/.pgmoneta/master.key ~/.pgmoneta-mcp/master.key
+chmod 600 ~/.pgmoneta-mcp/master.key
 ```
 
 ## Next Steps

@@ -137,9 +137,40 @@ pub struct InspectorConfiguration {
     pub timeout: u64,
 }
 
+/// Configuration properties for the interactive MCP client.
+///
+/// This corresponds to the `[pgmoneta_mcp_client]` section in the client configuration file.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ClientConfiguration {
+    /// The MCP server endpoint.
+    pub url: String,
+    /// Connection timeout in seconds. Default: 30.
+    #[serde(default = "default_timeout")]
+    pub timeout: u64,
+}
+
+/// Root configuration for the interactive MCP client.
+///
+/// This includes the required `[pgmoneta_mcp_client]` section and the optional `[llm]`
+/// section, which follows the same format as the server configuration.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ClientAppConfiguration {
+    /// Configuration for the interactive MCP client.
+    pub client: ClientConfiguration,
+    /// Optional LLM configuration shared with the server config format.
+    pub llm: Option<LlmConfiguration>,
+}
+
 #[derive(Deserialize)]
 struct InspectorConfRoot {
     pub inspector: InspectorConfiguration,
+}
+
+#[derive(Deserialize)]
+struct ClientConfRoot {
+    #[serde(rename = "pgmoneta_mcp_client")]
+    pub client: ClientConfiguration,
+    pub llm: Option<LlmConfiguration>,
 }
 
 /// Loads the main configuration and user configuration from the specified file paths.
@@ -218,6 +249,32 @@ pub fn load_inspector_configuration(
     Ok(root.inspector)
 }
 
+/// Loads only the interactive client configuration from the specified file path.
+///
+/// # Arguments
+///
+/// * `client_path` - The file path to the client configuration file.
+///
+/// # Returns
+///
+/// Returns a parsed [`ClientAppConfiguration`] object, or an error if the file cannot be read or parsed.
+pub fn load_client_configuration(client_path: &str) -> anyhow::Result<ClientAppConfiguration> {
+    let conf = Config::builder()
+        .add_source(config::File::with_name(client_path).format(FileFormat::Ini))
+        .build()?;
+    let root = conf.try_deserialize::<ClientConfRoot>().map_err(|e| {
+        anyhow!(
+            "Error parsing client configuration at path {}: {:?}",
+            client_path,
+            e
+        )
+    })?;
+    normalize_client_configuration(ClientAppConfiguration {
+        client: root.client,
+        llm: root.llm,
+    })
+}
+
 fn default_port() -> i32 {
     8000
 }
@@ -252,26 +309,40 @@ fn default_llm_max_tool_rounds() -> usize {
 
 fn normalize_configuration(mut conf: Configuration) -> anyhow::Result<Configuration> {
     if let Some(llm) = conf.llm.as_mut() {
-        llm.provider = llm.provider.trim().to_string();
-        llm.endpoint = llm.endpoint.trim().to_string();
-        llm.model = llm.model.trim().to_string();
-
-        if llm.provider.is_empty() {
-            return Err(anyhow!("LLM provider must not be empty"));
-        }
-
-        if llm.endpoint.is_empty() {
-            return Err(anyhow!("LLM endpoint must not be empty"));
-        }
-
-        if llm.model.is_empty() {
-            return Err(anyhow!("LLM model must not be empty"));
-        }
-
-        validate_llm_provider(&llm.provider)?;
+        normalize_llm_configuration(llm)?;
     }
 
     Ok(conf)
+}
+
+fn normalize_client_configuration(
+    mut conf: ClientAppConfiguration,
+) -> anyhow::Result<ClientAppConfiguration> {
+    if let Some(llm) = conf.llm.as_mut() {
+        normalize_llm_configuration(llm)?;
+    }
+
+    Ok(conf)
+}
+
+fn normalize_llm_configuration(llm: &mut LlmConfiguration) -> anyhow::Result<()> {
+    llm.provider = llm.provider.trim().to_string();
+    llm.endpoint = llm.endpoint.trim().to_string();
+    llm.model = llm.model.trim().to_string();
+
+    if llm.provider.is_empty() {
+        return Err(anyhow!("LLM provider must not be empty"));
+    }
+
+    if llm.endpoint.is_empty() {
+        return Err(anyhow!("LLM endpoint must not be empty"));
+    }
+
+    if llm.model.is_empty() {
+        return Err(anyhow!("LLM model must not be empty"));
+    }
+
+    validate_llm_provider(&llm.provider)
 }
 
 fn validate_llm_provider(provider: &str) -> anyhow::Result<()> {
@@ -291,4 +362,47 @@ fn default_encryption() -> String {
 
 fn default_timeout() -> u64 {
     30
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_load_client_configuration_with_llm_section() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            "[pgmoneta_mcp_client]\nurl = http://localhost:8000/mcp\ntimeout = 15\n\n[llm]\nprovider = ollama\nendpoint = http://localhost:11434\nmodel = qwen2.5:3b\nmax_tool_rounds = 7\n"
+        )
+        .unwrap();
+
+        let conf = load_client_configuration(file.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(conf.client.url, "http://localhost:8000/mcp");
+        assert_eq!(conf.client.timeout, 15);
+
+        let llm = conf.llm.unwrap();
+        assert_eq!(llm.provider, "ollama");
+        assert_eq!(llm.endpoint, "http://localhost:11434");
+        assert_eq!(llm.model, "qwen2.5:3b");
+        assert_eq!(llm.max_tool_rounds, 7);
+    }
+
+    #[test]
+    fn test_load_client_configuration_without_llm_section() {
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            "[pgmoneta_mcp_client]\nurl = http://localhost:8000/mcp\n"
+        )
+        .unwrap();
+
+        let conf = load_client_configuration(file.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(conf.client.url, "http://localhost:8000/mcp");
+        assert_eq!(conf.client.timeout, 30);
+        assert!(conf.llm.is_none());
+    }
 }

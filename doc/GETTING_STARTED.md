@@ -26,13 +26,13 @@ and `pgmoneta-mcp-admin`. Alternatively, run `cargo install .` to build and inst
 
 ## Configure user
 
-First, add the master key if you haven't done that already.
+First, copy the pgmoneta master key into the MCP home directory.
 
 ```
-pgmoneta-mcp-admin master-key
+mkdir -p ~/.pgmoneta-mcp
+cp ~/.pgmoneta/master.key ~/.pgmoneta-mcp/master.key
+chmod 600 ~/.pgmoneta-mcp/master.key
 ```
-
-This will prompt you to input your master key.
 
 Add the same user and password you added to pgmoneta server to pgmoneta MCP server, creating or updating
 your user configuration file.

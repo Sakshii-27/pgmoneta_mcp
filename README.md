@@ -14,6 +14,8 @@ for [pgmoneta](https://pgmoneta.github.io/), a backup / restore solution for [Po
 It uses [SCRAM-SHA-256](https://datatracker.ietf.org/doc/html/rfc7677) to authenticate with pgmoneta server.
 
 User management is done with the administration tool called `pgmoneta-mcp-admin`.
+Interactive tool execution is available through `pgmoneta-mcp-client`, while
+`pgmoneta-mcp-inspector` provides a more structured inspection CLI.
 
 ## Local LLM Support
 

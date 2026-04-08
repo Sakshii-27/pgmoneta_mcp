@@ -128,35 +128,73 @@ impl PgmonetaHandler {
 
         let mut trans_res: Map<String, Value> = Map::new();
         for (key, value) in map {
-            if file_size_fields.contains(&key.as_str()) {
-                let size = value.as_u64().unwrap();
-                let size_str = Utility::format_file_size(size);
-                trans_res.insert(key.clone(), Value::from(size_str));
+            if value.is_null() {
+                trans_res.insert(key.clone(), Value::from(""));
+            } else if file_size_fields.contains(&key.as_str()) {
+                if let Some(size) = value.as_u64() {
+                    let size_str = Utility::format_file_size(size);
+                    trans_res.insert(key.clone(), Value::from(size_str));
+                } else {
+                    trans_res.insert(key.clone(), value.clone());
+                }
             } else if hex_string_fields.contains(&key.as_str()) {
-                let num = value.as_u64().unwrap();
-                let hex_str = format!("0x{:X}", num);
-                trans_res.insert(key.clone(), Value::from(hex_str));
+                if let Some(num) = value.as_u64() {
+                    let hex_str = format!("0x{:X}", num);
+                    trans_res.insert(key.clone(), Value::from(hex_str));
+                } else {
+                    trans_res.insert(key.clone(), value.clone());
+                }
             } else if key == compression_field {
-                let compression = value.as_u64().unwrap();
-                let compression_str = Compression::translate_compression_enum(compression as u8)?;
-                trans_res.insert(key.clone(), Value::from(compression_str));
+                if let Some(compression) = value.as_u64() {
+                    match Compression::translate_compression_enum(compression as u8) {
+                        Ok(compression_str) => {
+                            trans_res.insert(key.clone(), Value::from(compression_str));
+                        }
+                        Err(_) => {
+                            trans_res.insert(key.clone(), Value::from("zstd"));
+                        }
+                    }
+                } else {
+                    trans_res.insert(key.clone(), value.clone());
+                }
             } else if key == encryption_field {
-                let encryption = value.as_u64().unwrap();
-                let encryption_str = Encryption::translate_encryption_enum(encryption as u8)?;
-                trans_res.insert(key.clone(), Value::from(encryption_str));
+                if let Some(encryption) = value.as_u64() {
+                    match Encryption::translate_encryption_enum(encryption as u8) {
+                        Ok(encryption_str) => {
+                            trans_res.insert(key.clone(), Value::from(encryption_str));
+                        }
+                        Err(_) => {
+                            trans_res.insert(key.clone(), value.clone());
+                        }
+                    }
+                } else {
+                    trans_res.insert(key.clone(), value.clone());
+                }
             } else if key == command_field {
-                let command = value.as_u64().unwrap();
-                let command_str = Command::translate_command_enum(command as u32)?;
-                trans_res.insert(key.clone(), Value::from(command_str));
+                if let Some(command) = value.as_u64() {
+                    match Command::translate_command_enum(command as u32) {
+                        Ok(command_str) => {
+                            trans_res.insert(key.clone(), Value::from(command_str));
+                        }
+                        Err(_) => {
+                            trans_res.insert(key.clone(), value.clone());
+                        }
+                    }
+                } else {
+                    trans_res.insert(key.clone(), value.clone());
+                }
             } else if key == error_field {
-                let error = value.as_u64().unwrap();
-                let error_msg = ManagementError::translate_error_enum(error as u32);
-                trans_res.insert(key.clone(), Value::from(error_msg));
+                if let Some(error) = value.as_u64() {
+                    let error_msg = ManagementError::translate_error_enum(error as u32);
+                    trans_res.insert(key.clone(), Value::from(error_msg));
+                } else {
+                    trans_res.insert(key.clone(), value.clone());
+                }
             } else if object_arr_fields.contains(&key.as_str()) {
                 let mut trans_arr: Vec<Value> = Vec::new();
                 if value.as_array().is_none() {
-                    trans_res.insert(key.clone(), Value::from(trans_arr));
-                    return Ok(trans_res);
+                    trans_res.insert(key.clone(), value.clone());
+                    continue;
                 }
                 let arr = value.as_array().unwrap();
                 for item in arr {
@@ -168,7 +206,6 @@ impl PgmonetaHandler {
                     }
                 }
                 trans_res.insert(key.clone(), Value::from(trans_arr));
-                return Ok(trans_res);
             } else if value.is_object() {
                 let object = value.as_object().unwrap();
                 let trans_obj = Self::_translate_result(object)?;
@@ -182,7 +219,7 @@ impl PgmonetaHandler {
 
     /// Parses, translates, and serializes the pgmoneta response into a JSON string
     /// suitable for returning as tool output.
-    pub(crate) fn generate_call_tool_result_string(result: &str) -> Result<String, McpError> {
+    pub fn generate_call_tool_result_string(result: &str) -> Result<String, McpError> {
         let res = Self::_parse_and_check_result(result)?;
         let trans_res = Self::_translate_result(&res).map_err(|e| {
             McpError::internal_error(
@@ -223,7 +260,7 @@ impl ServerHandler for PgmonetaHandler {
         if let Some(http_request_part) = context.extensions.get::<axum::http::request::Parts>() {
             let initialize_headers = &http_request_part.headers;
             let initialize_uri = &http_request_part.uri;
-            tracing::info!(?initialize_headers, %initialize_uri, "initialize from http server");
+            tracing::debug!(?initialize_headers, %initialize_uri, "initialize from http server");
         }
         Ok(self.get_info())
     }
@@ -281,5 +318,75 @@ mod tests {
         let parsed: Map<String, Value> = serde_json::from_str(&output).unwrap();
         assert_eq!(parsed.get("Outcome").unwrap(), "success");
         assert_eq!(parsed.get("BackupSize").unwrap(), "2.00 KB");
+    }
+
+    #[test]
+    fn test_generate_call_tool_result_string_preserves_null_command() {
+        let input = r#"{"Outcome":"success","Response":{"Command":null}}"#;
+        let result = PgmonetaHandler::generate_call_tool_result_string(input);
+
+        assert!(result.is_ok());
+        let parsed: Map<String, Value> = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(parsed["Response"]["Command"], json!(""));
+    }
+
+    #[test]
+    fn test_translate_result_preserves_null_backups_and_following_fields() {
+        let input = r#"{"Outcome":"success","Backups":null,"Elapsed":12}"#;
+        let result = PgmonetaHandler::generate_call_tool_result_string(input);
+
+        assert!(result.is_ok());
+        let parsed: Map<String, Value> = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(parsed["Backups"], json!(""));
+        assert_eq!(parsed["Elapsed"], json!(12));
+    }
+
+    #[test]
+    fn test_translate_result_defaults_unknown_compression_enum_to_zstd() {
+        let input = r#"{"Outcome":"success","Compression":18}"#;
+        let result = PgmonetaHandler::generate_call_tool_result_string(input);
+
+        assert!(result.is_ok());
+        let parsed: Map<String, Value> = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(parsed["Compression"], json!("zstd"));
+    }
+
+    #[test]
+    fn test_translate_result_preserves_unknown_command_enum() {
+        let input = r#"{"Outcome":"success","Response":{"Command":999}}"#;
+        let result = PgmonetaHandler::generate_call_tool_result_string(input);
+
+        assert!(result.is_ok());
+        let parsed: Map<String, Value> = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(parsed["Response"]["Command"], json!(999));
+    }
+
+    #[test]
+    fn test_translate_result_normalizes_backup_entries() {
+        let input = r#"{
+            "Outcome":"success",
+            "Response":{
+                "Backups":[
+                    {
+                        "Comments":null,
+                        "IncrementalParent":null,
+                        "Compression":18
+                    }
+                ]
+            }
+        }"#;
+        let result = PgmonetaHandler::generate_call_tool_result_string(input);
+
+        assert!(result.is_ok());
+        let parsed: Map<String, Value> = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(parsed["Response"]["Backups"][0]["Comments"], json!(""));
+        assert_eq!(
+            parsed["Response"]["Backups"][0]["IncrementalParent"],
+            json!("")
+        );
+        assert_eq!(
+            parsed["Response"]["Backups"][0]["Compression"],
+            json!("zstd")
+        );
     }
 }

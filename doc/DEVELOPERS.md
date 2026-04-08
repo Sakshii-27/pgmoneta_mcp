@@ -385,6 +385,83 @@ For full CLI reference, see the **MCP Inspector** chapter.
 
 ---
 
+## MCP Client
+
+The `pgmoneta-mcp-client` is a lightweight interactive shell for connecting to the MCP server and executing tool calls directly.
+
+It reads server connection details from a dedicated configuration file.
+
+Create `pgmoneta-mcp-client.conf`:
+
+```ini
+[pgmoneta_mcp_client]
+url = http://localhost:8000/mcp
+timeout = 30
+
+[llm]
+provider = ollama
+endpoint = http://localhost:11434
+model = qwen2.5:3b
+max_tool_rounds = 10
+```
+
+Configuration keys:
+
+### `[pgmoneta_mcp_client]`
+
+| Key | Required | Description |
+|------|----------|-------------|
+| `url` | Yes | Full MCP endpoint URL, including the `/mcp` path |
+| `timeout` | No | Timeout in seconds for connect and tool requests. Default: `30` |
+
+### `[llm]`
+
+The optional `[llm]` section uses the same format as `pgmoneta-mcp-server.conf`.
+
+| Key | Required | Description |
+|------|----------|-------------|
+| `provider` | Yes | `ollama`, `llama.cpp`, `ramalama`, or `vllm` |
+| `endpoint` | Yes | Base URL of the LLM server |
+| `model` | Yes | Model identifier used for tool selection |
+| `max_tool_rounds` | No | Accepted for compatibility with the shared LLM config block. Default: `10` |
+
+Run the interactive client:
+
+```sh
+pgmoneta-mcp-client -c pgmoneta-mcp-client.conf -u pgmoneta-mcp-users.conf
+```
+
+The prompt is derived from the configured endpoint, for example:
+
+```text
+admin@localhost:8000/mcp$ 
+```
+
+Inside the shell:
+
+```text
+/help
+/user
+List backups on primary server
+/developer
+list_backups {"server":"primary"}
+```
+
+The interactive prompt uses readline-style editing, explicit Home/End line
+navigation, slash-command Tab completion, and history navigation, and persists
+the latest 1000 commands in `~/.pgmoneta-mcp/pgmoneta-mcp-client.history`.
+
+The client starts in `/user` mode. When `[llm]` is configured, free-form
+requests are translated into one of the tools from `/tools` using the tool
+schemas returned by the MCP server. This keeps natural-language execution
+aligned with whatever tool set the server currently exposes.
+
+Use `/developer` for direct tool calls with explicit JSON input. Developer mode
+prints the full JSON response and skips the human-readable translation used in
+user mode.
+
+---
+
 ## Continuous Integration
 
 The project uses GitHub Actions for CI. The pipeline includes:

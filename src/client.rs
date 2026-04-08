@@ -36,16 +36,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-fn parse_compression(compression: &str) -> u8 {
-    match compression.to_lowercase().as_str() {
-        "gzip" => Compression::GZIP,
-        "zstd" => Compression::ZSTD,
-        "lz4" => Compression::LZ4,
-        "bzip2" => Compression::BZIP2,
-        _ => Compression::NONE,
-    }
-}
-
+#[cfg(test)]
 fn parse_encryption(encryption: &str) -> anyhow::Result<u8> {
     match encryption.to_lowercase().as_str() {
         "aes_256_gcm" | "aes" | "aes_256" => Ok(Encryption::AES_256_GCM),
@@ -152,18 +143,18 @@ impl PgmonetaClient {
 
     /// Constructs a standard request header for a given command.
     ///
-    /// The header includes the current local timestamp and defaults to
-    /// no encryption or compression, expecting a JSON response.
+    /// The header includes the current local timestamp and always uses
+    /// ZSTD compression plus AES-256-GCM encryption, expecting a JSON response.
     fn build_request_header(command: u32) -> anyhow::Result<RequestHeader> {
-        let config = CONFIG.get().expect("Configuration should be enabled");
         let timestamp = Local::now().format("%Y%m%d%H%M%S").to_string();
+
         Ok(RequestHeader {
             command,
             client_version: CLIENT_VERSION.to_string(),
             output_format: Format::JSON,
             timestamp,
-            compression: parse_compression(&config.pgmoneta.compression),
-            encryption: parse_encryption(&config.pgmoneta.encryption)?,
+            compression: Compression::ZSTD,
+            encryption: Encryption::AES_256_GCM,
         })
     }
 
@@ -192,11 +183,18 @@ impl PgmonetaClient {
             .get(username)
             .expect("Username should be found");
         let (master_password, master_salt) = security_util.load_master_key()?;
-        let password = String::from_utf8(security_util.decrypt_from_base64_string(
-            password_encrypted,
-            &master_password,
-            &master_salt,
-        )?)?;
+        let decrypted_password = security_util
+            .decrypt_from_base64_string(password_encrypted, &master_password, &master_salt)
+            .map_err(|e| {
+                anyhow!(
+                    "Failed to decrypt stored password for user '{}': {}. \
+                     Ensure the MCP server process can access the same ~/.pgmoneta-mcp/master.key \
+                     that was used when pgmoneta-mcp-users.conf was created or updated.",
+                    username,
+                    e
+                )
+            })?;
+        let password = String::from_utf8(decrypted_password)?;
         let stream = SecurityUtil::connect_to_server(
             &config.pgmoneta.host,
             config.pgmoneta.port,
@@ -410,7 +408,7 @@ impl PgmonetaClient {
         let request = PgmonetaRequest { request, header };
 
         let mut stream = Self::connect_to_server(username).await?;
-        tracing::info!(username = username, "Connected to server");
+        tracing::debug!(username = username, "Connected to server");
 
         let request_str = serde_json::to_string(&request)?;
         Self::write_request(&request_str, &mut stream, compression, encryption).await?;
@@ -521,8 +519,8 @@ mod tests {
             client_version: "0.2.0".to_string(),
             output_format: Format::JSON,
             timestamp: "20260304123045".to_string(),
-            compression: Compression::NONE,
-            encryption: Encryption::NONE,
+            compression: Compression::ZSTD,
+            encryption: Encryption::AES_256_GCM,
         };
 
         let serialized = serde_json::to_string(&header).expect("Serialization should succeed");
@@ -533,8 +531,8 @@ mod tests {
         assert_eq!(deserialized["ClientVersion"], "0.2.0");
         assert_eq!(deserialized["Output"], Format::JSON);
         assert_eq!(deserialized["Timestamp"], "20260304123045");
-        assert_eq!(deserialized["Compression"], Compression::NONE);
-        assert_eq!(deserialized["Encryption"], Encryption::NONE);
+        assert_eq!(deserialized["Compression"], Compression::ZSTD);
+        assert_eq!(deserialized["Encryption"], Encryption::AES_256_GCM);
     }
 
     #[tokio::test]

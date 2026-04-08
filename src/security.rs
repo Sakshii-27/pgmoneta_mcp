@@ -26,7 +26,7 @@ use base64::{
 use hmac::Hmac;
 use home::home_dir;
 use pbkdf2::pbkdf2;
-use rand::TryRngCore;
+use rand::TryRng;
 use scram::ScramClient;
 use sha2::Sha256;
 use std::fs;
@@ -258,7 +258,7 @@ impl SecurityUtil {
         let mut password = vec![0u8; length];
         let mut random_bytes = vec![0u8; length];
 
-        rand::rngs::OsRng.try_fill_bytes(&mut random_bytes)?;
+        rand::rngs::SysRng.try_fill_bytes(&mut random_bytes)?;
 
         for (i, byte) in random_bytes.iter().enumerate() {
             password[i] = CHARS[*byte as usize % CHARS.len()];
@@ -334,7 +334,7 @@ impl SecurityUtil {
         } // Lock is dropped here
 
         // Cache miss or invalid cache - perform the expensive derivation
-        tracing::info!(
+        tracing::debug!(
             "Deriving Master Key using {} iterations (this may take a few seconds)...",
             MASTER_PBKDF2_ITERATIONS
         );
@@ -436,8 +436,8 @@ impl SecurityUtil {
         // derive the key
         let mut salt = [0u8; SALT_LEN];
         let mut nonce_bytes = [0u8; NONCE_LEN];
-        rand::rngs::OsRng.try_fill_bytes(&mut salt)?;
-        rand::rngs::OsRng.try_fill_bytes(&mut nonce_bytes)?;
+        rand::rngs::SysRng.try_fill_bytes(&mut salt)?;
+        rand::rngs::SysRng.try_fill_bytes(&mut nonce_bytes)?;
 
         let derived_key_bytes =
             Self::derive_key_two_step(master_password, master_salt, &salt, key_len)?;
@@ -718,7 +718,7 @@ impl SecurityUtil {
                 auth_type
             ));
         }
-        tracing::info!(
+        tracing::debug!(
             host = host,
             port = port,
             username = username,

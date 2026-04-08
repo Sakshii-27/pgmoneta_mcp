@@ -15,12 +15,16 @@ name = "pgmoneta-mcp-admin"
 path = "src/bin/admin/admin.rs"
 
 [[bin]]
+name = "pgmoneta-mcp-client"
+path = "src/bin/client/client.rs"
+
+[[bin]]
 name = "pgmoneta-mcp-inspector"
 path = "src/bin/inspector/main.rs"
 
 [dependencies]
-tokio = {version = "1", features = ["full"] }
-serde = { version = "1", features = ["derive"] }
+tokio = { version = "1.51.1", features = ["full"] }
+serde = { version = "1.0.228", features = ["derive"] }
 rmcp = { version = "1.3", features = [
     "server",
     "macros",
@@ -32,44 +36,45 @@ rmcp = { version = "1.3", features = [
     "elicitation",
     "schemars",
 ] }
-anyhow = "1.0"
-serde_json = "1.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = [
+anyhow = "1.0.102"
+serde_json = "1.0.149"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = [
     "env-filter",
     "std",
     "fmt",
     "chrono"
 ] }
-axum = { version = "0.8", features = ["macros"] }
-config = { version = "0.15", features = ["yaml"] }
+axum = { version = "0.8.8", features = ["macros"] }
+config = { version = "0.15.22", features = ["yaml"] }
 base64 = "0.22.1"
-home = "0.5.11"
+home = "0.5.12"
 pbkdf2 = "0.12.2"
 sha2 = "0.10.8"
 hmac = "0.12.1"
-rand = "0.9.1"
+rand = "0.10.0"
 aes-gcm = "0.10.3"
-flate2 = "1.0"
-zstd = "0.13"
-lz4 = "1.24"
-bzip2 = "0.4"
-aes = { version = "0.8", features = ["hazmat"] }
+flate2 = "1.1.9"
+zstd = "0.13.3"
+lz4 = "1.28.1"
+bzip2 = "0.6.1"
+aes = { version = "0.8.4", features = ["hazmat"] }
 zeroize = "1.8.2"
 scram = { package = "scram-2", version = "0.7.0" }
-once_cell = "1.21.3"
-clap = { version = "4.5.53", features = ["derive"] }
-chrono = "0.4.42"
+once_cell = "1.21.4"
+clap = { version = "4.6.0", features = ["derive"] }
+chrono = "0.4.44"
 rpassword = "7.4.0"
 serde_ini = "0.2.0"
 tracing-appender = "0.2.4"
 syslog-tracing = "0.3.1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls"] }
 inquire = "0.9.4"
 treelog = { version = "0.0.6", features = ["arbitrary-json"] }
+rustyline = "18.0.0"
 [target.'cfg(windows)'.dependencies]
 winlog2 = "0.3.2"
-log = "0.4"
+log = "0.4.29"
 
 [dev-dependencies]
 tempfile = "3.27.0"

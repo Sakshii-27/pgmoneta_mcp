@@ -1,6 +1,6 @@
 # pgmoneta-mcp-admin user guide
 
-The **pgmoneta-mcp-admin** command line interface manages your users and master key for [**pgmoneta-mcp**](https://github.com/pgmoneta/pgmoneta-mcp).
+The **pgmoneta-mcp-admin** command line interface manages your users for [**pgmoneta-mcp**](https://github.com/pgmoneta/pgmoneta-mcp).
 
 ```
 pgmoneta-mcp-admin
@@ -20,19 +20,21 @@ Options:
   -V, --version              Print version
 
 Commands:
-  master-key  Create or update the master key
   user        Manage a specific user
 ```
 
-## master-key
-
-Create or update the master key. The master key will be created in the pgmoneta-mcp user home directory under `~/.pgmoneta-mcp/master.key`
-
-Command
+Before you add or edit users, copy the pgmoneta master key into the MCP home
+directory:
 
 ```sh
-pgmoneta-mcp-admin master-key
+mkdir -p ~/.pgmoneta-mcp
+cp ~/.pgmoneta/master.key ~/.pgmoneta-mcp/master.key
+chmod 600 ~/.pgmoneta-mcp/master.key
 ```
+
+`pgmoneta-mcp-admin` uses `~/.pgmoneta-mcp/master.key` to encrypt passwords in
+`pgmoneta-mcp-users.conf`, and the running `pgmoneta-mcp-server` must be able to
+read that same file.
 
 ## user add
 

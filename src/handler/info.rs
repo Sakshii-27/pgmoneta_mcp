@@ -125,7 +125,7 @@ impl AsyncTool<PgmonetaHandler> for ListBackupsTool {
         _service: &PgmonetaHandler,
         request: ListBackupsRequest,
     ) -> Result<String, McpError> {
-        let sort = request.sort.unwrap_or(Sort::ASC.to_string());
+        let sort = normalize_sort_option(request.sort);
         let result: String =
             PgmonetaClient::request_list_backups(&request.username, &request.server, &sort)
                 .await
@@ -133,6 +133,20 @@ impl AsyncTool<PgmonetaHandler> for ListBackupsTool {
                     McpError::internal_error(format!("Failed to list backups: {:?}", e), None)
                 })?;
         PgmonetaHandler::generate_call_tool_result_string(&result)
+    }
+}
+
+fn normalize_sort_option(sort: Option<String>) -> String {
+    match sort {
+        Some(value) => {
+            let trimmed = value.trim();
+            if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("null") {
+                Sort::ASC.to_string()
+            } else {
+                trimmed.to_string()
+            }
+        }
+        None => Sort::ASC.to_string(),
     }
 }
 
@@ -155,5 +169,13 @@ mod tests {
         let desc = ListBackupsTool::description();
         assert!(desc.is_some());
         assert!(desc.unwrap().contains("backups"));
+    }
+
+    #[test]
+    fn test_normalize_sort_option_defaults_invalid_values_to_asc() {
+        assert_eq!(normalize_sort_option(None), "asc");
+        assert_eq!(normalize_sort_option(Some(String::new())), "asc");
+        assert_eq!(normalize_sort_option(Some(" null ".to_string())), "asc");
+        assert_eq!(normalize_sort_option(Some("desc".to_string())), "desc");
     }
 }

@@ -51,7 +51,8 @@ You translate user requests into pgmoneta MCP tool invocations. \
 Always select the single best matching tool from the provided tool list and respond with a tool call instead of plain text. \
 Use arguments that are explicitly provided by the user and match the tool schema. \
 Do not invent values. Omit optional arguments when the user did not specify them. \
-If the user mentions a pgmoneta server name such as primary or standby, pass it through the tool's `server` argument.";
+If the user mentions a pgmoneta server name such as primary or standby, pass it through the tool's `server` argument. \
+Requests to back up a server, such as `Backup primary server`, should call the `backup_server` tool.";
 const HELP_TEXT: &str = "\
 Basic usage:
   /help                 Show this help
@@ -82,7 +83,8 @@ Command history is persisted in ~/.pgmoneta-mcp/pgmoneta-mcp-client.history.
 
 Examples:
   info
-  get_backup_info {\"backup_id\": \"latest\"}";
+  get_backup_info {\"backup_id\": \"latest\"}
+  Backup primary server";
 
 #[derive(Debug, Parser)]
 #[command(
@@ -489,6 +491,9 @@ fn format_json_value(value: Value, label: &str) -> Result<String> {
     if let Value::String(text) = value {
         return Ok(text);
     }
+    if let Some(summary) = backup_response_summary(&value) {
+        return Ok(summary);
+    }
     if let Some(summary) = backup_list_summary(&value) {
         return Ok(summary);
     }
@@ -564,29 +569,60 @@ fn backup_list_summary(value: &Value) -> Option<String> {
     )];
     for backup in backups {
         let backup = backup.as_object()?;
-        let backup_id = value_to_display_string(backup.get("Backup")?)?;
-
-        let mut details = Vec::new();
-        details.push(backup_kind_label(backup.get("Incremental")).to_string());
-        if let Some(size) = backup.get("BackupSize").and_then(value_to_display_string) {
-            details.push(format!("Backup: {size}"));
-        }
-        if let Some(size) = backup.get("RestoreSize").and_then(value_to_display_string) {
-            details.push(format!("Restore: {size}"));
-        }
-        if let Some(validity) = backup_validity_label(backup.get("Valid")) {
-            details.push(validity.to_string());
-        }
-
-        let suffix = if details.is_empty() {
-            String::new()
-        } else {
-            format!(" | {}", details.join(", "))
-        };
-        lines.push(format!("• {backup_id}{suffix}"));
+        lines.push(format_backup_summary_line(backup)?);
     }
 
     Some(lines.join("\n"))
+}
+
+fn backup_response_summary(value: &Value) -> Option<String> {
+    let command = value
+        .get("Header")
+        .and_then(|header| header.get("Command"))
+        .and_then(Value::as_str);
+    if command != Some("backup") {
+        return None;
+    }
+
+    let response = value.get("Response")?.as_object()?;
+    let server = response
+        .get("Server")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let pgmoneta_version = response
+        .get("ServerVersion")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let major = value_to_display_string(response.get("MajorVersion")?)?;
+    let minor = value_to_display_string(response.get("MinorVersion")?)?;
+
+    Some(format!(
+        "{server} (pgmoneta {pgmoneta_version} w/ PostgreSQL {major}.{minor})\n{}",
+        format_backup_summary_line(response)?
+    ))
+}
+
+fn format_backup_summary_line(backup: &serde_json::Map<String, Value>) -> Option<String> {
+    let backup_id = value_to_display_string(backup.get("Backup")?)?;
+
+    let mut details = Vec::new();
+    details.push(backup_kind_label(backup.get("Incremental")).to_string());
+    if let Some(size) = backup.get("BackupSize").and_then(value_to_display_string) {
+        details.push(format!("Backup: {size}"));
+    }
+    if let Some(size) = backup.get("RestoreSize").and_then(value_to_display_string) {
+        details.push(format!("Restore: {size}"));
+    }
+    if let Some(validity) = backup_validity_label(backup.get("Valid")) {
+        details.push(validity.to_string());
+    }
+
+    let suffix = if details.is_empty() {
+        String::new()
+    } else {
+        format!(" | {}", details.join(", "))
+    };
+    Some(format!("• {backup_id}{suffix}"))
 }
 
 fn value_to_display_string(value: &Value) -> Option<String> {
@@ -1205,6 +1241,22 @@ mod tests {
         }
     }
 
+    fn sample_backup_tool_definition() -> ToolDefinition {
+        ToolDefinition {
+            tool_type: "function".to_string(),
+            function: pgmoneta_mcp::llm::FunctionDefinition {
+                name: "backup_server".to_string(),
+                description: "Create a full backup".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "server": { "type": "string" }
+                    }
+                }),
+            },
+        }
+    }
+
     #[test]
     fn test_parse_slash_commands() {
         let tools = HashSet::new();
@@ -1731,6 +1783,52 @@ mod tests {
     }
 
     #[test]
+    fn test_format_tool_result_summarizes_backup_response() {
+        let result = CallToolResult::success(vec![
+            RawContent::text(
+                r#"{
+                "Header": {
+                    "ClientVersion": "0.21.0",
+                    "Command": "backup",
+                    "Compression": "zstd",
+                    "Encryption": "aes_256_gcm",
+                    "Output": 1,
+                    "Timestamp": 20260412082050
+                },
+                "Outcome": {
+                    "Status": true,
+                    "Time": "00:00:2.2711"
+                },
+                "Request": {
+                    "Server": "primary"
+                },
+                "Response": {
+                    "Backup": 20260412082050,
+                    "BackupSize": "5.29 MB",
+                    "BiggestFileSize": "328.00 KB",
+                    "Compression": "zstd",
+                    "Encryption": "aes_256_gcm",
+                    "Incremental": false,
+                    "IncrementalParent": "",
+                    "MajorVersion": 18,
+                    "MinorVersion": 3,
+                    "RestoreSize": "8.44 MB",
+                    "Server": "primary",
+                    "ServerVersion": "0.21.0",
+                    "Valid": 1
+                }
+            }"#,
+            )
+            .no_annotation(),
+        ]);
+
+        assert_eq!(
+            format_tool_result(&result).unwrap(),
+            "primary (pgmoneta 0.21.0 w/ PostgreSQL 18.3)\n• 20260412082050 | Full, Backup: 5.29 MB, Restore: 8.44 MB, Valid"
+        );
+    }
+
+    #[test]
     fn test_format_tool_result_developer_preserves_full_json_response() {
         let result = CallToolResult::success(vec![
             RawContent::text(r#"{"Outcome":"Success","BackupSize":1024}"#).no_annotation(),
@@ -1801,6 +1899,34 @@ mod tests {
             command,
             ClientCommand::ToolCall {
                 name: "list_backups".to_string(),
+                args: HashMap::from([("server".to_string(), json!("primary"))]),
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn test_translate_natural_language_maps_backup_request_to_backup_tool() {
+        let llm = MockLlm {
+            response: LlmResponse::ToolCalls(vec![pgmoneta_mcp::llm::ToolCall {
+                function: pgmoneta_mcp::llm::ToolCallFunction {
+                    name: "backup_server".to_string(),
+                    arguments: HashMap::from([("server".to_string(), json!("primary"))]),
+                },
+            }]),
+        };
+
+        let command = translate_natural_language(
+            &llm,
+            &[sample_backup_tool_definition()],
+            "Backup primary server",
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            command,
+            ClientCommand::ToolCall {
+                name: "backup_server".to_string(),
                 args: HashMap::from([("server".to_string(), json!("primary"))]),
             }
         );

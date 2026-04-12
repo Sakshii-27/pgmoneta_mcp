@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+pub mod backup;
 pub mod compression;
 pub mod conf;
 pub mod encryption;
@@ -54,6 +55,7 @@ impl PgmonetaHandler {
     pub fn tool_router() -> ToolRouter<Self> {
         ToolRouter::new()
             .with_sync_tool::<hello::SayHelloTool>()
+            .with_async_tool::<backup::BackupServerTool>()
             .with_async_tool::<info::GetBackupInfoTool>()
             .with_async_tool::<info::ListBackupsTool>()
             .with_async_tool::<retention::RetainBackupTool>()

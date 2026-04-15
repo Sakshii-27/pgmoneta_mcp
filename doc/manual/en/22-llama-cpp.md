@@ -105,3 +105,23 @@ pgmoneta-mcp-server -c pgmoneta-mcp.conf -u pgmoneta-mcp-users.conf
 ```
 
 Open your MCP client and ask a question about your backups to verify end-to-end setup.
+
+
+### Using llama.cpp Web UI
+
+The `llama.cpp` built-in Web UI can function as an interactive chat client, talking directly to `pgmoneta_mcp` to gain context about your database.
+
+Because `pgmoneta_mcp` natively supports CORS (Cross-Origin Resource Sharing), you **do not** need to use the llama-server proxy flag (`--webui-mcp-proxy`).
+
+To set this up:
+
+1. **Start both servers**: Ensure your `llama-server` is running (e.g., on `http://localhost:8080`) and `pgmoneta-mcp-server` is running (e.g., on port `8000`).
+2. **Open the Web UI**: Navigate to the `llama-server` URL in your web browser (e.g., `http://localhost:8080`).
+3. **Open Settings**: In the Web UI, locate and click on the settings icon.
+4. **Configure MCP**:
+   - Navigate to the **MCP** section.
+   - If you see a **Use proxy** checkbox, ensure it is **disabled** (newer versions of `llama.cpp` may no longer display this checkbox).
+   - Click **Add New Server**.
+   - Input the full MCP endpoint for your `pgmoneta_mcp` instance (e.g., `http://localhost:8000/mcp` or `http://127.0.0.1:8000/mcp`).
+
+**Note:** If you have previously connected to an MCP server using a proxy in an older version of the Web UI, you may experience connection errors. To fix this, refresh the web page completely, delete the old server entry from the MCP settings, disable the proxy if the toggle is visible, and click **Add New Server** again.

@@ -71,7 +71,7 @@ struct RequestHeader {
   - See `src/constant.rs` for complete list
 
 - **client_version**: Version string (e.g., "0.2.0")
-  - Defined in `constant::CLIENT_VERSION`
+  - Defined in `constant::PGMONETA_VERSION`
 
 - **output_format**: Response format
   - `Format::JSON` (1): JSON format (default)
@@ -215,7 +215,7 @@ fn build_request_header(command: u32) -> RequestHeader
 **Returns**: Populated `RequestHeader` with current timestamp
 
 **Default values**:
-- `client_version`: From `CLIENT_VERSION` constant
+- `client_version`: From `PGMONETA_VERSION` constant
 - `output_format`: `Format::JSON`
 - `compression`: always `Compression::ZSTD`
 - `encryption`: always `Encryption::AES_256_GCM`

@@ -26,7 +26,7 @@ use std::path::Path;
 #[command(
     name = "pgmoneta-mcp-admin",
     about = "Administration utility for pgmoneta-mcp",
-    version
+    version = pgmoneta_mcp::constant::VERSION
 )]
 struct Args {
     /// The user configuration file

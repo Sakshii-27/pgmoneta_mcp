@@ -6,7 +6,7 @@ use pgmoneta_mcp::compression::CompressionUtil;
 use pgmoneta_mcp::configuration::{
     CONFIG, Configuration, PgmonetaConfiguration, PgmonetaMcpConfiguration,
 };
-use pgmoneta_mcp::constant::{CLIENT_VERSION, Command, Compression, Encryption, Format};
+use pgmoneta_mcp::constant::{Command, Compression, Encryption, Format, PGMONETA_VERSION};
 use pgmoneta_mcp::security::SecurityUtil;
 use serde::Serialize;
 use serde_json::Value;
@@ -207,7 +207,7 @@ where
     let encryption = parse_encryption(&config.pgmoneta.encryption)?;
     let header = RequestHeader {
         command,
-        client_version: CLIENT_VERSION.to_string(),
+        client_version: PGMONETA_VERSION.to_string(),
         output_format: Format::JSON,
         timestamp: Local::now().format("%Y%m%d%H%M%S").to_string(),
         compression,

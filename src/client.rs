@@ -151,7 +151,7 @@ impl PgmonetaClient {
 
         Ok(RequestHeader {
             command,
-            client_version: CLIENT_VERSION.to_string(),
+            client_version: PGMONETA_VERSION.to_string(),
             output_format: Format::JSON,
             timestamp,
             compression: Compression::ZSTD,
@@ -459,7 +459,7 @@ mod tests {
             .expect("Header building should succeed");
 
         assert_eq!(header.command, Command::INFO);
-        assert_eq!(header.client_version, CLIENT_VERSION);
+        assert_eq!(header.client_version, PGMONETA_VERSION);
         assert_eq!(header.output_format, Format::JSON);
         assert_eq!(header.compression, Compression::ZSTD);
         assert_eq!(header.encryption, Encryption::AES_256_GCM);

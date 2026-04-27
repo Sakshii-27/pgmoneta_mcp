@@ -82,7 +82,7 @@ Command history is persisted in ~/.pgmoneta-mcp/pgmoneta-mcp-client.history.";
 #[command(
     name = "pgmoneta-mcp-client",
     about = "Interactive MCP client for pgmoneta",
-    version
+    version = pgmoneta_mcp::constant::VERSION
 )]
 struct Args {
     /// Path to pgmoneta MCP client configuration file
@@ -202,7 +202,7 @@ fn main() -> Result<()> {
         }
     };
 
-    println!("{}", startup_banner(env!("CARGO_PKG_VERSION")));
+    println!("{}", startup_banner(pgmoneta_mcp::constant::VERSION));
     println!("• Help: /help");
     println!();
 

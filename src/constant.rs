@@ -15,8 +15,11 @@
 
 use anyhow::anyhow;
 
+/// The version of pgmoneta-mcp
+pub const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (Supported pgmoneta: 0.21.0)");
+
 /// This client version is to match pgmoneta-cli
-pub const CLIENT_VERSION: &str = "0.21.0";
+pub const PGMONETA_VERSION: &str = "0.21.0";
 
 /// JSON key used to extract the outcome category from management responses.
 pub const MANAGEMENT_CATEGORY_OUTCOME: &str = "Outcome";

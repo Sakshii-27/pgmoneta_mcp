@@ -29,7 +29,7 @@ use treelog::{Tree, config::RenderConfig, renderer::write_tree_with_config};
 #[command(
     name = "pgmoneta-mcp-inspector",
     about = "Model Context Protocol (MCP) inspector for pgmoneta, a backup/restore tool for PostgreSQL",
-    version
+    version = pgmoneta_mcp::constant::VERSION
 )]
 pub struct Cli {
     #[command(subcommand)]
